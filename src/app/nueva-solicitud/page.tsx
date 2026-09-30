@@ -24,10 +24,14 @@ export default function NuevaSolicitudPage() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // El navegador vacía `currentTarget` en cuanto termina de despachar el
+    // evento — hay que guardar la referencia al form antes del `await`, no
+    // leerla después (ahí ya es `null`, de ahí el error "reset" de null).
+    const formEl = e.currentTarget;
     setEstado("enviando");
     setMensajeError(null);
 
-    const form = new FormData(e.currentTarget);
+    const form = new FormData(formEl);
     const payload = {
       areaSolicitante: String(form.get("areaSolicitante") ?? ""),
       documento: String(form.get("documento") ?? "") as Documento,
@@ -50,7 +54,7 @@ export default function NuevaSolicitudPage() {
       const creado = await res.json();
       setIdCreado(creado.id);
       setEstado("ok");
-      e.currentTarget.reset();
+      formEl.reset();
     } catch (err) {
       setMensajeError(err instanceof Error ? err.message : "Error inesperado al guardar la solicitud.");
       setEstado("error");
