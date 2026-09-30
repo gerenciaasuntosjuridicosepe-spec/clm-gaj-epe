@@ -206,3 +206,23 @@ export function garantiaAFila(contratoId: string, g: GarantiaExigida): (string |
 export function filaAUsuario(fila: string[]): Usuario {
   return { id: fila[0] ?? "", nombre: fila[1] ?? "", rolId: fila[2] ?? "", area: fila[3] || undefined, email: fila[4] ?? "" };
 }
+
+export function usuarioAFila(u: Usuario): (string | number)[] {
+  return [u.id, u.nombre, u.rolId, u.area ?? "", u.email];
+}
+
+export function filaASector(fila: string[]): { id: string; nombre: string } {
+  return { id: fila[0] ?? "", nombre: fila[1] ?? "" };
+}
+
+export function sectorAFila(s: { id: string; nombre: string }): (string | number)[] {
+  return [s.id, s.nombre];
+}
+
+export function filaATipoContrato(fila: string[]): { nombre: string; sectorAsignadoId: string | null } {
+  return { nombre: fila[0] ?? "", sectorAsignadoId: fila[1] || null };
+}
+
+export function tipoContratoAFila(t: { nombre: string; sectorAsignadoId: string | null }): (string | number)[] {
+  return [t.nombre, t.sectorAsignadoId ?? ""];
+}

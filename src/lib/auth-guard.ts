@@ -29,6 +29,22 @@ export function esRespuestaError(v: unknown): v is NextResponse {
 }
 
 /**
+ * Autoriza escrituras sobre catálogos de Administración (Sectores, Tipos de
+ * contrato/anotación/garantía, Usuarios) — a diferencia de los contratos, acá
+ * no hay "etapa" contra la cual chequear `accesoEtapa`, así que el criterio
+ * es directo: solo `administrador_sistema` gestiona configuración del sistema
+ * (PRD sección 3, descripción del rol).
+ */
+export async function requerirAdmin(): Promise<SesionAutorizada | NextResponse> {
+  const sesion = await requerirSesion();
+  if (esRespuestaError(sesion)) return sesion;
+  if (sesion.rolId !== "administrador_sistema") {
+    return NextResponse.json({ error: "Solo Administración del sistema puede modificar catálogos." }, { status: 403 });
+  }
+  return sesion;
+}
+
+/**
  * Autoriza una escritura sobre un contrato existente: además de poder verlo,
  * el rol tiene que ser responsable ("R") de su etapa actual — es el mismo
  * criterio que ya expresa `permisos.ts`, acá se lo hace cumplir también en

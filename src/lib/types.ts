@@ -13,17 +13,11 @@ export type Documento = "Contrato" | "Convenio" | "Acta Acuerdo" | "Adenda";
 
 /**
  * 4.1bis — Tipo de contrato: catálogo configurable e independiente de Documento.
- * Punto de partida (ampliable/modificable por Jurídicos vía Administración > Tipos de contrato).
+ * `string`, no una unión fija: se administra en tiempo de ejecución desde
+ * Administración > Tipos de contrato (ver src/lib/data/catalogos-provider.ts),
+ * no está codificado en el software.
  */
-export type TipoContrato =
-  | "Contrato"
-  | "Convenio SAE"
-  | "Acuerdo Conciliatorio de Daños"
-  | "Mutuo"
-  | "Convenio"
-  | "Reconocimiento de Mayores Costos"
-  | "Acuerdo Transaccional"
-  | "Adenda";
+export type TipoContrato = string;
 
 /** 5 / 6 — Etapas del flujo funcional (BPMN de referencia textual del PRD). */
 export type EtapaId =
