@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Design tokens — CLM Gerencia de Asuntos Jurídicos (EPE)
+   Fuente: DESIGN_SYSTEM_CLM_EPE.md, sección 8.
+   Formalizados acá como variables de tema de Tailwind v4
+   (@theme genera automáticamente las utilidades de color: bg, text, border, etc.).
+   ============================================================ */
+@theme {
+  /* Color — marca */
+  --color-brand-blue-900: #003468;
+  --color-brand-blue-700: #004b8d;
+  --color-brand-blue-500: #0066c0;
+  --color-brand-orange-700: #d4891a;
+  --color-brand-orange-500: #f5a623;
+  --color-brand-orange-300: #ffbb45;
+
+  /* Neutros */
+  --color-surface: #f4f7fb;
+  --color-surface-2: #ebf0f8;
+  --color-border: #d0dcf0;
+  --color-text-primary: #1a2940;
+  --color-text-secondary: #4a6080;
+  --color-text-muted: #7a90a8;
+
+  /* Estado */
+  --color-success: #1a8a4a;
+  --color-success-bg: #e8f7ee;
+  --color-danger: #c0392b;
+  --color-danger-bg: #fdedeb;
+  --color-warning: #e67e22;
+  --color-warning-bg: #fef5e7;
+  --color-info: #2980b9;
+  --color-info-bg: #ebf5fb;
+
+  /* Tipografía */
+  --font-ui: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Barlow Condensed", ui-sans-serif, system-ui, sans-serif;
+  --text-2xs: 9px;
+  --text-xs: 10px;
+  --text-sm: 11px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 17px;
+  --text-2xl: 24px;
+  --text-3xl: 30px;
+
+  /* Spacing (escala de 4px — sección 1.4, corrige la referencia) */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-7: 32px;
+  --spacing-8: 40px;
+
+  /* Radios */
+  --radius-sm: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  /* Sombras */
+  --shadow-sm: 0 1px 3px rgba(0, 75, 141, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 75, 141, 0.12);
+  --shadow-lg: 0 8px 32px rgba(0, 75, 141, 0.18);
+
+  /* Layout */
+  --sidebar-w: 248px;
+  --topbar-h: 56px;
+
+  /* Motion (sección 5) */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+}
+
+/* Opacidades de marca — variables CSS puntuales (no utilidades de color),
+   reemplazan los rgba() inline sueltos que señala la sección 1.1. */
+:root {
+  --overlay-brand-04: rgba(0, 75, 141, 0.04);
+  --overlay-brand-08: rgba(0, 75, 141, 0.08);
+  --overlay-brand-12: rgba(0, 75, 141, 0.12);
+  --overlay-white-07: rgba(255, 255, 255, 0.07);
+  --overlay-white-11: rgba(255, 255, 255, 0.11);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
