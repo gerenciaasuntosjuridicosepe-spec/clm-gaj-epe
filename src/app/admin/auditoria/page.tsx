@@ -3,6 +3,7 @@ import { Alert } from "@/components/domain/alert";
 import { HistorialAuditoria } from "@/components/domain/historial-auditoria";
 import { listarVisibles } from "@/lib/data/provider";
 import { auth } from "@/auth";
+import { rolClmDeSesion } from "@/lib/auth-guard";
 
 // Los datos vienen de Sheets/mock y cambian en cualquier momento (nuevas
 // solicitudes, aprobaciones, vencimientos); no tiene sentido cachear esta
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function AuditoriaPage() {
   const session = await auth();
-  const contratos = await listarVisibles(session!.user.rolId);
+  const contratos = await listarVisibles(rolClmDeSesion(session));
   const eventos = contratos.flatMap((c) => c.historial.map((h) => ({ ...h, contratoId: c.id })));
 
   return (

@@ -85,7 +85,12 @@ export const SECTORES_COLUMNS = ["id", "nombre"] as const;
 export const TIPOS_CONTRATO_COLUMNS = ["nombre", "sector_asignado_id"] as const;
 export const TIPOS_ANOTACION_COLUMNS = ["nombre"] as const;
 export const TIPOS_GARANTIA_COLUMNS = ["nombre"] as const;
-export const USUARIOS_COLUMNS = ["id", "nombre", "rol_id", "area", "email"] as const;
+// rol_alquileres y activo son NUEVOS (D12, PRD v2.1 sección 4) — agregados
+// al final a propósito, para no correr las columnas existentes de ninguna
+// planilla del CLM ya aprovisionada. Vacíos se interpretan como "sin acceso
+// al módulo de Alquileres" y "activo", respectivamente (no rompen filas
+// existentes que no los tengan).
+export const USUARIOS_COLUMNS = ["id", "nombre", "rol_id", "area", "email", "rol_alquileres", "activo"] as const;
 
 /** Convierte una fila cruda de la hoja "Contratos" en un objeto `Contrato` (sin hitos/historial: se completan aparte). */
 export function filaAContrato(fila: string[]): Contrato {
@@ -204,11 +209,20 @@ export function garantiaAFila(contratoId: string, g: GarantiaExigida): (string |
 }
 
 export function filaAUsuario(fila: string[]): Usuario {
-  return { id: fila[0] ?? "", nombre: fila[1] ?? "", rolId: fila[2] ?? "", area: fila[3] || undefined, email: fila[4] ?? "" };
+  return {
+    id: fila[0] ?? "",
+    nombre: fila[1] ?? "",
+    rolId: fila[2] ?? "",
+    area: fila[3] || undefined,
+    email: fila[4] ?? "",
+    rolAlquileres: fila[5] || undefined,
+    // Vacío se interpreta como activo (D12) — solo "FALSE"/"false" explícito da de baja.
+    activo: fila[6] === "FALSE" || fila[6] === "false" ? false : true,
+  };
 }
 
 export function usuarioAFila(u: Usuario): (string | number)[] {
-  return [u.id, u.nombre, u.rolId, u.area ?? "", u.email];
+  return [u.id, u.nombre, u.rolId, u.area ?? "", u.email, u.rolAlquileres ?? "", u.activo === false ? "FALSE" : ""];
 }
 
 export function filaASector(fila: string[]): { id: string; nombre: string } {

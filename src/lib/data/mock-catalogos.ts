@@ -67,10 +67,24 @@ export const MOCK_TIPOS_GARANTIA: string[] = [
 export interface Usuario {
   id: string;
   nombre: string;
+  /** Rol en el CLM. Puede quedar vacío para un usuario que solo tiene rol en Alquileres (D12, PRD v2.1 sección 4). */
   rolId: string;
   area?: string;
   /** Email de la cuenta de Google con la que inicia sesión (ver src/lib/data/usuarios-provider.ts). */
   email: string;
+  /**
+   * NUEVO (D3/D12, PRD v2.1 sección 4): rol en el módulo de Alquileres,
+   * independiente del rol del CLM — "ADMINISTRADOR" | "GESTOR" |
+   * "SUPERVISOR" | "LECTOR" | vacío (sin acceso al módulo). Se tipa como
+   * `string` acá (no se importa el tipo del módulo de Alquileres en este
+   * archivo del CLM a propósito — D12 dice que la hoja Usuarios del CLM es
+   * la hoja central de accesos, no que el CLM dependa del modelo de
+   * Alquileres); la validación de valores concretos vive en
+   * `src/lib/alquileres/permisos.ts`.
+   */
+  rolAlquileres?: string;
+  /** NUEVO (D12): baja lógica compartida por todos los módulos. Vacío/undefined se interpreta como activo, para no romper lo existente. */
+  activo?: boolean;
 }
 
 export const MOCK_USUARIOS: Usuario[] = [
@@ -80,5 +94,8 @@ export const MOCK_USUARIOS: Usuario[] = [
   { id: "u4", nombre: "Lic. P. Alonso", rolId: "responsable_seguimiento", area: "Grandes Clientes", email: "p.alonso@epe.com.ar" },
   { id: "u5", nombre: "Ing. L. Gómez", rolId: "responsable_seguimiento", area: "Distribución", email: "l.gomez@epe.com.ar" },
   // Cuenta real para probar el login de punta a punta (ver INSTRUCTIVO_CONFIGURACION.md).
-  { id: "u6", nombre: "Administrador CLM", rolId: "administrador_sistema", area: "Sistemas", email: "paganinicg@gmail.com" },
+  // También ADMINISTRADOR de Alquileres: mismo email, para poder probar ambos módulos de punta a punta sin agregar una segunda cuenta real.
+  { id: "u6", nombre: "Administrador CLM", rolId: "administrador_sistema", area: "Sistemas", email: "paganinicg@gmail.com", rolAlquileres: "ADMINISTRADOR" },
+  // Usuario ficticio de prueba, solo con rol en Alquileres (sin rolId del CLM) — para probar D12/T16'/T19: debe poder entrar a /alquileres y recibir "acceso no autorizado" en páginas del CLM.
+  { id: "u7", nombre: "Gestora de Alquileres (prueba)", rolId: "", area: "GAJ", email: "gestora.alquileres@ejemplo.test", rolAlquileres: "GESTOR" },
 ];

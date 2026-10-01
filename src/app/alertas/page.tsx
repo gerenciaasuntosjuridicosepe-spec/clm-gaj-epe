@@ -3,6 +3,7 @@ import { Alert } from "@/components/domain/alert";
 import { listarVisibles } from "@/lib/data/provider";
 import { formatearFecha, formatearMonto, diasRestantes } from "@/lib/fechas";
 import { auth } from "@/auth";
+import { rolClmDeSesion } from "@/lib/auth-guard";
 
 // Los datos vienen de Sheets/mock y cambian en cualquier momento (nuevas
 // solicitudes, aprobaciones, vencimientos); no tiene sentido cachear esta
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function AlertasPage() {
   const session = await auth();
-  const contratos = await listarVisibles(session!.user.rolId);
+  const contratos = await listarVisibles(rolClmDeSesion(session));
   const alertas = contratos
     .flatMap((c) => c.hitos.map((h) => ({ contrato: c, hito: h, dias: diasRestantes(h.fecha) })))
     .sort((a, b) => (a.dias ?? 0) - (b.dias ?? 0));

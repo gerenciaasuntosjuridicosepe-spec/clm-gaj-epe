@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Session } from "next-auth";
 import { auth } from "@/auth";
 import { accesoEtapa, puedeVerContrato } from "@/lib/permisos";
 import { RolId } from "@/lib/types";
@@ -26,6 +27,32 @@ export async function requerirSesion(): Promise<SesionAutorizada | NextResponse>
 
 export function esRespuestaError(v: unknown): v is NextResponse {
   return v instanceof NextResponse;
+}
+
+/**
+ * Angosta `session.user.rolId` (opcional desde D12/D3, PRD v2.1 sección 4:
+ * un usuario puede tener sesión solo por su rol en el módulo de Alquileres,
+ * sin rol del CLM) a `RolId` para que las páginas de servidor del CLM
+ * puedan seguir llamando a `listarVisibles(rolId)` / `puedeVerContrato(rolId, ...)`
+ * sin manejar `undefined` en cada una.
+ *
+ * En la práctica esto nunca debería faltar en estas páginas: el callback
+ * `authorized` de `src/auth.ts` (vía `tieneAccesoARuta`,
+ * `src/lib/acceso-modulo.ts`) ya redirige a `/sin-acceso` antes de que
+ * cualquier página del CLM llegue a ejecutarse con una sesión sin `rolId`.
+ * Si este `throw` llegara a dispararse, es síntoma de un bug en ese gate
+ * (o de llamar a esta función desde un lugar no protegido por el proxy,
+ * como una ruta de API — para eso está `requerirSesion()`, no esto), no un
+ * caso esperado de uso normal.
+ */
+export function rolClmDeSesion(session: Session | null): RolId {
+  const rolId = session?.user?.rolId;
+  if (!rolId) {
+    throw new Error(
+      "rolClmDeSesion: sesión sin rolId del CLM — no debería poder llegar acá (ver callback authorized en src/auth.ts)."
+    );
+  }
+  return rolId;
 }
 
 /**
