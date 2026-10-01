@@ -54,6 +54,38 @@ export default async function LoginPage({
           </button>
         </form>
 
+        {process.env.NODE_ENV !== "production" && (
+          <>
+            <div className="mt-6 flex items-center gap-2 text-[var(--text-xs)] text-[var(--color-text-muted)]">
+              <div className="h-px flex-1 bg-[var(--color-border)]" />
+              solo desarrollo
+              <div className="h-px flex-1 bg-[var(--color-border)]" />
+            </div>
+            <form
+              className="mt-4 flex flex-col gap-2"
+              action={async (formData: FormData) => {
+                "use server";
+                const email = String(formData.get("email") ?? "");
+                await signIn("dev-bypass", { email, redirectTo: "/" });
+              }}
+            >
+              <input
+                type="email"
+                name="email"
+                placeholder="email@ejemplo (ver src/lib/data/mock-catalogos.ts)"
+                required
+                className="rounded-[var(--radius-sm)] border border-[var(--color-border)] px-3 py-2 text-[var(--text-sm)]"
+              />
+              <button
+                type="submit"
+                className="rounded-[var(--radius-sm)] border border-dashed border-[var(--color-border)] px-3.5 py-2 text-[var(--text-sm)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]"
+              >
+                Entrar como (sin Google — no existe en producción)
+              </button>
+            </form>
+          </>
+        )}
+
         <p className="mt-5 text-[var(--text-xs)] text-[var(--color-text-muted)]">
           v1 · sin SSO corporativo — el acceso depende de que tu email de Google esté cargado en Usuarios.
         </p>

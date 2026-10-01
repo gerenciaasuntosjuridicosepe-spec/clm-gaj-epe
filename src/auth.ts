@@ -1,9 +1,54 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import Credentials from "next-auth/providers/credentials";
+import type { Provider } from "next-auth/providers";
 import { buscarUsuarioPorEmail } from "@/lib/data/usuarios-provider";
 import { RolId } from "@/lib/types";
 import type { RolAlquileresId } from "@/lib/alquileres/tipos";
 import { comoRolAlquileres, puedeIniciarSesion, tieneAccesoARuta } from "@/lib/acceso-modulo";
+
+/**
+ * Bypass de login SOLO para desarrollo local (sección 6.2 del encargo: "una
+ * sesión de prueba exclusiva para NODE_ENV=development ... claramente
+ * deshabilitada/imposible en producción"). Sin credenciales de Google
+ * OAuth en este worktree (no hay `.env.local`), el botón "Continuar con
+ * Google" de /login no puede completarse — este proveedor permite elegir
+ * cualquier email ya cargado en Usuarios (mock) y entrar como esa persona,
+ * para poder probar el módulo de punta a punta en `npm run dev`.
+ *
+ * Por qué es imposible que esto se cuele a producción, con dos barreras
+ * independientes (no solo una, por si una falla):
+ *  1. El array `providers` ni siquiera INCLUYE este proveedor cuando
+ *     `NODE_ENV === "production"` — no es una cuestión de esconder el
+ *     botón en la UI, el endpoint de NextAuth para este proveedor
+ *     (`/api/auth/callback/dev-bypass`) no existe en absoluto en ese build.
+ *  2. Aunque alguien lo reactivara a mano en producción, `authorize()`
+ *     vuelve a chequear `NODE_ENV` y devuelve `null` (login rechazado) —
+ *     defensa en profundidad, igual patrón que `exigirMockPermitido`
+ *     (F0-4, `src/lib/data/entorno.ts`).
+ * No depende de ninguna variable de entorno adicional que alguien pudiera
+ * dejar cargada por error en Vercel: usa el mismo `NODE_ENV` que ya fija
+ * Next.js automáticamente según el comando (`next dev` vs. `next build`).
+ */
+function proveedorDevBypass(): Provider | null {
+  if (process.env.NODE_ENV === "production") return null;
+  return Credentials({
+    id: "dev-bypass",
+    name: "Email de prueba (solo desarrollo)",
+    credentials: { email: { label: "Email", type: "email" } },
+    async authorize(credentials) {
+      if (process.env.NODE_ENV === "production") return null; // barrera 2 (ver comentario de arriba)
+      const email = typeof credentials?.email === "string" ? credentials.email : undefined;
+      if (!email) return null;
+      const usuario = await buscarUsuarioPorEmail(email);
+      if (!usuario || !puedeIniciarSesion(usuario)) return null;
+      return { id: usuario.id, email: usuario.email, name: usuario.nombre };
+    },
+  });
+}
+
+const devBypass = proveedorDevBypass();
+const providers = devBypass ? [Google, devBypass] : [Google];
 
 declare module "next-auth" {
   interface Session {
@@ -46,7 +91,7 @@ type TokenConRol = { rolId?: RolId; rolAlquileres?: RolAlquileresId; usuarioId?:
  * sin tocar Sheets desde el edge.
  */
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [Google],
+  providers,
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   callbacks: {

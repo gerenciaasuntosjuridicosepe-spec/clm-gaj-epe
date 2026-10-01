@@ -38,19 +38,30 @@ Pruebas técnicas a-d: runbooks en `docs/runbooks/prueba-a-login.md`, `prueba-b-
 
 ## Tarea actual
 
-Fase 1 — cimientos del módulo de Alquileres: esquema de datos (`src/lib/alquileres/esquema.ts`), catálogos (incluidos los valores INFERIDO/"a completar" del xlsx, como catálogo editable), roles por módulo y guardia de acceso, capa de datos genérica (repositorio + fake de Sheets), IDs por secuencia atómica, control de versión optimista, reglas de negocio R1-R20 con TDD reproduciendo T1-T28.
+Fase 1 — cimientos del módulo de Alquileres. Hecho hasta ahora (ver bitácora para el detalle de cada commit): modelo de datos (`tipos.ts`), catálogos semilla, `fechas.ts` propio, las 20 reglas de negocio puras que se pueden implementar sin el libro original (R2, R3'/R3a, R4', R5, R8, R9, R13-R20 + validaciones + alertas A1-A8 + campos calculados C1/C4/C6 + legítimo abono + comunicaciones), esquema de la planilla de Alquileres + script de aprovisionamiento, y roles por módulo (D3/D12) con guardia de acceso.
+
+Falta para cerrar Fase 1: el repositorio genérico sobre Sheets + fake/doble de la API de Sheets + mock en memoria con secuencia de IDs y control de versión optimista (R1, T1', T20, T26); después, el ABM mínimo de Inmuebles/Expedientes/Personas/Actuaciones (páginas + rutas de API bajo `app/alquileres` y `app/api/alquileres`, con su propia guardia RF-42/T18); y el ítem de menú propio (RF-41) filtrado por `rolAlquileres`.
+
+**Nota sobre continuidad (2026-10-01):** esta sesión retomó un corte: un subagente al que se le había encargado "esquema + repositorio Sheets de Alquileres" llegó a terminar el esquema y el script de aprovisionamiento (verificados y commiteados en `386a3c0`) pero se cortó antes de empezar el repositorio/fake — ese subagente nunca llegó a correr pruebas ni a commitear nada él mismo; todo lo que había quedado sin commitear en el working tree se revisó a mano, se verificó (`npm test`/`npm run lint`/`npx tsc --noEmit`/`npm run build`) y se commiteó en esta sesión. El repositorio genérico sigue pendiente, es la próxima tarea.
 
 ## Próximas tareas (orden previsto)
 
-1. `src/lib/alquileres/tipos.ts` — modelo de datos propio (Inmueble, Expediente, Persona, Actuacion, etc.), independiente de `src/lib/types.ts` del CLM (D2, sección 4 del PRD v2.1).
-2. `src/lib/alquileres/catalogos/` — catálogos semilla (CATALOGOS_VALORES del xlsx) como objetos/arrays editables, con los valores INFERIDO marcados y los "a completar con el original" vacíos/configurables (nunca hardcodeados en lógica).
-3. `src/lib/alquileres/fechas.ts` — días hábiles, feriados, R13, semáforo propio (180/120/60), sin `new Date("yyyy-mm-dd")`, con pruebas T3-T5, T22.
-4. `src/lib/alquileres/reglas/` — R1-R20 como funciones puras, TDD con T1-T28.
-5. `src/lib/alquileres/esquema.ts` — nombres de hoja + columnas (fuente única, análoga a `sheets-schema.ts` del CLM).
-6. `src/lib/alquileres/repositorio/` + fake de Sheets para pruebas (T26: aislamiento de planillas).
-7. Roles por módulo: ampliar sesión/usuarios-provider con `rolesPorModulo`, guardia de acceso al grupo de menú y a `app/alquileres/**` + `app/api/alquileres/**` (RF-42, T18, T19).
-8. ABM mínimo de inmuebles/expedientes/personas/actuaciones sobre el mock.
-9. `scripts/setup-sheet-alquileres.mjs` (importa `esquema.ts`, prueba de coherencia T21).
+1. `src/lib/alquileres/repositorio/` — interfaces genéricas, cliente Sheets propio (`GOOGLE_SHEETS_ALQUILERES_ID`), implementación mock en memoria, implementación real sobre Sheets, un fake/doble completo de la API de Sheets (para probar sin Google real) con secuencia de IDs por prefijo (R1), control de versión optimista (T20), escritura multi-fila atómica, caché corta de lecturas, y aislamiento total respecto de la planilla del CLM (T26).
+2. ABM mínimo de Inmuebles/Expedientes/Personas/Actuaciones: páginas bajo `src/app/alquileres/**` + rutas bajo `src/app/api/alquileres/**`, con guardia de sesión/rol en cada una (RF-42) y su propia prueba genérica (igual patrón que `rutas-guardia-sesion.test.ts`, T18).
+3. Ítem de menú "Alquileres" (RF-41) en el sidebar, filtrado por `rolAlquileres` de la sesión.
+4. Cerrar Fase 1: correr lint/build/test completos, recorrido manual en `npm run dev` (requiere resolver cómo loguearse sin Google real — ver DECISIONES.md, pendiente de registrar esa decisión), completar `docs/TRAZABILIDAD.md` con las filas de Fase 1, revisión adversarial.
+
+## Resultado de las últimas pruebas (2026-10-01, antes de seguir con el repositorio)
+
+```
+> clm-gaj-epe@0.1.0 test
+> vitest run
+
+ Test Files  29 passed (29)
+      Tests  244 passed (244)
+```
+
+`npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK, genera las mismas rutas que antes más `/sin-acceso`.
 
 ## Resultado de las últimas pruebas (Fase 0, cierre)
 
@@ -184,4 +195,53 @@ Route (app)
 
 - Creados `docs/runbooks/prueba-a-login.md`, `prueba-b-carga.md`, `prueba-c-plantilla.md`, `prueba-d-concurrencia.md`: qué confirman, prerrequisitos, pasos, resultado esperado, quién puede correrlos. Ninguno se ejecutó (todos requieren Google real).
 - Actualizado este archivo (PROGRESO.md) con el cierre de Fase 0: tabla de hallazgos → commit → prueba, salida real de `npm test`/`npm run lint`/`npm run build`.
-- Pendiente: `docs/TRAZABILIDAD.md` (se crea a continuación, antes de empezar Fase 1 — un requisito sin su fila en ese archivo no se da por terminado, por regla del encargo).
+- Creado `docs/TRAZABILIDAD.md` con las filas de Fase 0 (commit `162609d`, el mismo de los runbooks).
+
+### 2026-09-30 — Fase 1: modelo de datos, catálogos semilla y fechas/días hábiles (commit `d8595b6`)
+
+- `src/lib/alquileres/tipos.ts`: modelo completo transcripto campo a campo desde la hoja DICCIONARIO del xlsx reconstruido (20 tablas). Catálogos cerrados del PRD como unión literal; catálogos abiertos o "a completar con el original" como `string`.
+- `src/lib/alquileres/catalogos/{catalogos-seed,parametros-seed,hitos-seed}.ts`: semillas editables. Los hitos H-06 a H-14/H-16 a H-19, `destino_categoria` y los valores completos de `tipo_area`/`caracter`/`tipo_documento`/`cargo` quedan fuera de la semilla, sin inventarse (ver PENDIENTES-HUMANOS.md punto 1).
+- `src/lib/alquileres/fechas.ts`: módulo de fechas propio del módulo (no toca el del CLM). Días hábiles con feriados activos, EDATE con clamping para meses, semáforo de 4 niveles, "hoy" en America/Argentina/Buenos_Aires.
+- Pruebas (`fechas.test.ts`, 18 casos) reproducen T2, T3, T4, T5 y T22 textualmente.
+- npm test: 59/59 OK. Lint limpio. Build OK.
+
+### 2026-09-30 — Fase 1: reglas R2, R3'/R3a, R4', R5, R8, R9, R15, R16 (commit `4c284ae`)
+
+- Primer lote de reglas de negocio puras en `src/lib/alquileres/reglas/`, cada una con su prueba reproduciendo los casos numéricos del PRD (T2, T6, T7, T8).
+- `src/lib/alquileres/test-fixtures.ts`: fábricas de datos ficticios para las pruebas (nunca datos reales).
+- npm test: 106/106 OK. Lint limpio. Build OK.
+
+### 2026-09-30 — Fase 1: reglas R13, R14, R17, R18, R19, R20 (commit `58f40a2`)
+
+- Segundo lote: R13 (orquesta fechas.ts + CFG_HITOS_TIPO, probado contra la semilla real), R14 (estado derivado como recomputación pura), R17 (T17), R18 (hitos condicionales), R19 (canon vigente), R20 (catálogos editables).
+- npm test: 140/140 OK. Lint limpio. Build OK.
+
+### 2026-09-30 — Fase 1: validaciones, alertas A1-A8, campos calculados, legítimo abono, comunicaciones (commit `a463b0c`)
+
+- `validaciones.ts` (T11 nro_expediente, T12 CUIT módulo 11, T13 neutralizarFormula/NF-S4, partida inmobiliaria, DNI, URL de documento, mail institucional), `alertas.ts` (A1-A8, incluidos T9/T10/T25), `campos-calculados.ts` (C1/C4/C6), `legitimo-abono.ts` (T28), `comunicaciones.ts` (T23).
+- Corrigió de paso una colisión de nombres (`ResultadoValidacion` exportado desde 5 archivos) que `tsc` detectaba al agregar el `index.ts` barrel — se volvieron interfaces internas no exportadas.
+- npm test: 200/200 OK. Lint limpio. Build OK.
+
+### 2026-10-01 — Retomando tras corte de sesión por límite de uso
+
+- La sesión anterior (y un subagente lanzado dentro de ella para "esquema + repositorio Sheets de Alquileres") se cortaron por límite de uso. Esta sesión arrancó re-verificando todo desde cero antes de seguir, como exige el método de trabajo: `git log`, `git status`, `git diff`, `npm test`, `npx tsc --noEmit`.
+- Encontrado: los 4 commits de Fase 1 de arriba (`d8595b6`, `4c284ae`, `58f40a2`, `a463b0c`) estaban hechos pero nunca registrados en este archivo — corregido con las 4 entradas de arriba.
+- Encontrado: working tree con cambios sin commitear — resultado del subagente de esquema/repositorio, cortado a mitad de camino. Se revisó cada archivo a mano (no se confió en que "ya estaba probado"):
+  - `src/lib/alquileres/esquema.ts` (503 líneas): esquema completo de las 20 tablas + hojas de secuencia por prefijo. Se comparó campo por campo contra `tipos.ts` (ya conocido de memoria, por haberlo escrito en la sesión anterior) — coincide exactamente en orden y nombres.
+  - `scripts/setup-sheet-alquileres.mjs` + `scripts/setup-sheet-alquileres.test.ts` (T21): se corrió la prueba (24 casos, todos en verde) y se ejecutó el script sin `.env.local` para confirmar que falla con el mensaje esperado de "faltan credenciales" (nunca se conectó a Google real).
+  - Se commiteó como `386a3c0` recién después de esa verificación manual completa.
+- Encontrado (reportado por el coordinador, confirmado de nuevo con `npx tsc --noEmit`): 5 páginas del CLM (`admin/auditoria`, `alertas`, `contratos`, `contratos/[id]`, página de inicio) con un error de tipos nuevo (`RolId | undefined` no asignable a `RolId`) — causado por un cambio en curso en `src/auth.ts`/`src/lib/data/mock-catalogos.ts` que esta misma sesión venía escribiendo para D3/D12 (roles por módulo) cuando se cortó. Se completó ese trabajo (`src/lib/acceso-modulo.ts`, guardia en `authorized()`, página `/sin-acceso`) y se agregó `rolClmDeSesion()` en `auth-guard.ts` para angostar el tipo en esas 5 páginas sin cambiar su comportamiento. Commit `dd1a4b8`.
+- `npm test`: 244/244 OK. `npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK (ver salida completa más arriba, sección "Resultado de las últimas pruebas").
+- Actualizado `docs/TRAZABILIDAD.md` con las filas de Fase 1 hechas hasta ahora (ver archivo).
+
+### 2026-10-01 — Login de desarrollo (dev-bypass) + verificación manual en vivo de T19
+
+- Agregado un proveedor `Credentials` (`id: "dev-bypass"`) a `src/auth.ts`, incluido en el array `providers` SOLO cuando `NODE_ENV !== "production"` (dos barreras independientes, ver `docs/DECISIONES.md`). Formulario correspondiente en `src/app/login/page.tsx`, visible solo fuera de producción.
+- Verificado de punta a punta contra un servidor real (`npm run dev` con un `AUTH_SECRET` efímero pasado inline, sin crear `.env.local`), con `curl` simulando el flujo CSRF + POST:
+  - `gestora.alquileres@ejemplo.test` (rol solo Alquileres) → `GET /` → 302 a `/sin-acceso`. **T19 (una dirección), confirmado en vivo.**
+  - `m.cardozo@epe.com.ar` (rol solo CLM) → `GET /` → 200; `GET /alquileres` → 302 a `/sin-acceso`. **T19 (la otra dirección), confirmado en vivo.**
+  - Email no registrado → login rechazado, `/login?error=CredentialsSignin`.
+  - Sin sesión → `GET /` → 307 a `/login`.
+  - Log del servidor sin errores inesperados (el único `[auth][error] CredentialsSignin` que aparece es el esperado, del intento con email no registrado).
+- `npm test`: 244/244 OK. Lint limpio. `npx tsc --noEmit`: limpio.
+- Commit pendiente de hacer a continuación de esta entrada.

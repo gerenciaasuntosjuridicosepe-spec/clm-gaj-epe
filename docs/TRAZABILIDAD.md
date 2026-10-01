@@ -19,7 +19,41 @@ Se completa incrementalmente, fase por fase. Lo que no tiene fila todavía es po
 
 ## Fase 1 — cimientos del módulo
 
-(Se completa durante la Fase 1 — ver `docs/PROGRESO.md` para la tarea actual.)
+| ID | Qué exige | Archivo de implementación | Archivo de prueba | Estado |
+| --- | --- | --- | --- | --- |
+| D2 | Modelo de datos de Alquileres independiente del CLM | `src/lib/alquileres/tipos.ts` | (tipado estático — `npx tsc --noEmit`; usado y ejercitado por todas las pruebas de `reglas/`) | Hecho |
+| M1'-M18 (esquema) | Columnas de cada tabla, fuente única | `src/lib/alquileres/esquema.ts` | `scripts/setup-sheet-alquileres.test.ts` (T21) | Hecho |
+| R20 (catálogos) | Valores de catálogo, editables salvo sistema | `src/lib/alquileres/catalogos/catalogos-seed.ts`, `reglas/r20-catalogos-editables.ts` | `reglas/r20-catalogos-editables.test.ts` | Hecho |
+| M14/PARAMETROS | Parámetros de configuración con valores por defecto del PRD | `src/lib/alquileres/catalogos/parametros-seed.ts` | (usado por `fechas.test.ts`/`alertas.test.ts` vía los umbrales) | Hecho |
+| HITOS_SEMILLA/CFG_HITOS_TIPO | Hitos H-01 a H-05/H-15/H-20/H-21 con sus plazos | `src/lib/alquileres/catalogos/hitos-seed.ts` | `reglas/r13-fecha-prevista.test.ts` (usa la semilla real) | Hecho (H-06 a H-14/H-16 a H-19: ver PENDIENTES-HUMANOS.md punto 1) |
+| T2 | fecha_fin por defecto (R5) | `reglas/r5-fecha-fin.ts` | `reglas/r5-fecha-fin.test.ts` | Hecho |
+| T3, T4, T5 | Cálculo de fecha prevista con días hábiles/feriados (R13) | `fechas.ts`, `reglas/r13-fecha-prevista.ts` | `fechas.test.ts`, `reglas/r13-fecha-prevista.test.ts` | Hecho |
+| T6 | Vencimiento efectivo con adendas (R15) | `reglas/r15-vencimiento-efectivo.ts` | `reglas/r15-vencimiento-efectivo.test.ts` | Hecho |
+| T7 | Canon neto de IVA (R16) | `reglas/r16-canon-neto.ts` | `reglas/r16-canon-neto.test.ts` | Hecho |
+| T8 | Insertar legítimo abono en la cadena (R3a) | `reglas/r3-cadena-actuaciones.ts` | `reglas/r3-cadena-actuaciones.test.ts` | Hecho |
+| T9, T10 | Alertas A1/A5/C4 con NO_RENOVADO y sin sucesora | `reglas/alertas.ts`, `reglas/campos-calculados.ts` | `reglas/alertas.test.ts`, `reglas/campos-calculados.test.ts` | Hecho |
+| T11 | Formatos de nro_expediente | `reglas/validaciones.ts` | `reglas/validaciones.test.ts` | Hecho |
+| T12 | CUIT/CUIL módulo 11 | `reglas/validaciones.ts` | `reglas/validaciones.test.ts` | Hecho |
+| T13 / NF-S4 | Protección contra inyección de fórmulas | `reglas/validaciones.ts` (`neutralizarFormula`), usado por `esquema.ts` (`objetoAFila`) | `reglas/validaciones.test.ts` | Hecho |
+| T16 | Cuenta con `activo = false` no inicia sesión aunque tenga rol | `src/lib/acceso-modulo.ts` (`puedeIniciarSesion`) | `src/lib/acceso-modulo.test.ts` | Hecho |
+| T17 | Cambio de tipo de actuación (R17) | `reglas/r17-cambio-tipo.ts` | `reglas/r17-cambio-tipo.test.ts` | Hecho |
+| T19 | Acceso cruzado de módulo rechazado en ambas direcciones | `src/lib/acceso-modulo.ts` (`tieneAccesoARuta`), `src/auth.ts` (callback `authorized`), `src/app/sin-acceso/page.tsx` | `src/lib/acceso-modulo.test.ts` | Hecho (lógica pura probada; falta exhibir en un recorrido manual con `npm run dev`, ver Fase 1 pendiente) |
+| T21 | Coherencia script de aprovisionamiento ↔ esquema | `scripts/setup-sheet-alquileres.mjs` | `scripts/setup-sheet-alquileres.test.ts` | Hecho |
+| T22 | Zona horaria a las 22:00 (fechas del módulo) | `src/lib/alquileres/fechas.ts` | `src/lib/alquileres/fechas.test.ts` | Hecho |
+| T23 | Marcar como enviado exige fecha no futura | `reglas/comunicaciones.ts` | `reglas/comunicaciones.test.ts` | Hecho |
+| T25 | Alerta A8 por respaldo atrasado | `reglas/alertas.ts` | `reglas/alertas.test.ts` | Hecho |
+| T28 | Diferencia monto_total_reconocido vs. meses × mensual | `reglas/legitimo-abono.ts` | `reglas/legitimo-abono.test.ts` | Hecho |
+| D12 | Hoja Usuarios ampliada (`rol_alquileres`, `activo`), sin romper filas existentes | `src/lib/data/mock-catalogos.ts`, `src/lib/data/sheets-schema.ts` | `src/lib/data/sheets-schema.test.ts` (regresión de filas viejas) | Hecho |
+| D3 | Rol por módulo independiente del rol del CLM | `src/auth.ts`, `src/lib/acceso-modulo.ts` | `src/lib/acceso-modulo.test.ts` | Hecho |
+| R1 | IDs por secuencia atómica, nunca reutilizados | — (repositorio, pendiente) | — | **Pendiente** — próxima tarea (ver `docs/PROGRESO.md`) |
+| T1' | 20 altas simultáneas → IDs distintos y consecutivos | — (repositorio, pendiente) | — | **Pendiente** |
+| T18 | Petición anónima a `/api/alquileres/**` → 401 | — (rutas de Alquileres, pendientes) | — | **Pendiente** — para el CLM ya está cubierto (F0-1) |
+| T20 | Control de versión optimista detecta conflicto | — (repositorio, pendiente) | — | **Pendiente** |
+| T26 | Aislamiento total entre planilla del CLM y de Alquileres | — (repositorio, pendiente) | — | **Pendiente** |
+| T27 | Escritura de Usuarios desde Alquileres solo puede tocar `rol_alquileres`/`activo` | — (pendiente: wrapper restringido sobre `actualizarUsuario`) | — | **Pendiente** |
+| R6, R10, R11, R12 | (reglas del libro original v0.1, texto no disponible) | — | — | No se inventan — ver `docs/PENDIENTES-HUMANOS.md` punto 1 |
+| RF-41 | Ítem de menú "Alquileres" filtrado por rol | — (pendiente) | — | **Pendiente** |
+| RF-42 | Cobertura de guardia en `app/api/alquileres/**` | `src/lib/test-utils/recorrer-rutas-api.ts` ya es genérica y cubre cualquier ruta nueva bajo `app/api/alquileres/**` automáticamente | — (se activará solo con que existan rutas ahí) | Infraestructura lista, sin rutas de Alquileres todavía que probar |
 
 ## Fase 2 — hitos, alertas y dashboard
 

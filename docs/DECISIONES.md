@@ -50,3 +50,25 @@ Antes de tocar código se verificó cada hallazgo del PRD v2.1 sección 3 leyend
 Cada uno de estos hallazgos se corrige como una tarea separada, con su propio commit y su propia prueba, registradas en PROGRESO.md.
 
 ---
+
+## 2026-10-01 — Cómo probar el login en `npm run dev` sin credenciales de Google (sección 6.2 del encargo)
+
+**Qué:** el encargo pide explícitamente dejar documentada "la solución que uses para poder probar en dev" el login, ya que no hay `.env.local` en este worktree y el botón "Continuar con Google" no puede completarse sin `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`.
+
+**Alternativas consideradas:**
+1. No probar el login en absoluto, solo revisar el código a ojo — descartado: el encargo exige "recorrido manual con el servidor de desarrollo" en cada cierre de fase, y los cambios de `src/auth.ts` de esta fase (D3/D12, T19) son precisamente los que más necesitan probarse de punta a punta, no solo con pruebas unitarias de la lógica pura.
+2. Mockear `next-auth` por completo en un entorno de pruebas E2E (Playwright) — descartado por desproporcionado para esta etapa: no hay todavía UI de Alquileres que probar de punta a punta, y agregaría una dependencia y una infraestructura de pruebas nueva solo para esto.
+3. **Elegida:** un proveedor adicional de NextAuth, `Credentials` con id `"dev-bypass"` (`src/auth.ts`, función `proveedorDevBypass()`), que acepta un email de texto, lo busca en `buscarUsuarioPorEmail` (mismo mecanismo que el login real) y entra como esa persona si existe y `puedeIniciarSesion()` lo permite. Se agrega un formulario simple en `/login`, visible solo cuando `NODE_ENV !== "production"`.
+
+**Por qué es seguro que esto no se cuele a producción (dos barreras independientes, documentadas también como comentario en el código):**
+1. El array `providers` que recibe `NextAuth(...)` ni siquiera incluye este proveedor cuando `NODE_ENV === "production"` — no es una cuestión de ocultar el botón en la UI: el endpoint `/api/auth/callback/dev-bypass` no existe en absoluto en ese build (confirmado: `npm run build`, que corre con `NODE_ENV=production` internamente, genera igual todas las rutas sin errores, y el código de `proveedorDevBypass()` devuelve `null` en ese momento).
+2. Si alguien reactivara el proveedor a mano en producción, `authorize()` vuelve a chequear `NODE_ENV` y devuelve `null` — defensa en profundidad, mismo patrón que `exigirMockPermitido` de F0-4 (`src/lib/data/entorno.ts`).
+3. No depende de ninguna variable de entorno nueva que alguien pudiera dejar cargada por error en Vercel (nada de `ALLOW_DEV_LOGIN=true` o similar): usa el mismo `NODE_ENV` que Next.js ya fija automáticamente según el comando (`next dev` vs. `next build`/`next start`).
+
+**Cómo correrlo:** como tampoco hay `AUTH_SECRET` en este worktree (no se creó `.env.local`), hace falta pasarlo como variable de entorno inline al comando, sin persistir ningún archivo:
+```
+AUTH_SECRET="<cualquier valor aleatorio, ej. node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\">" npm run dev
+```
+Esto NO es un secreto real (no protege datos reales, todo el entorno usa datos mock/ficticios) — es solo la clave de firma de JWT de una sesión de desarrollo efímera, descartable en cualquier momento. No se guarda en ningún archivo del repositorio.
+
+**Verificado de punta a punta en esta sesión** (no solo descripto): se corrió `npm run dev` con un `AUTH_SECRET` efímero, y con `curl` (simulando el flujo CSRF + POST que hace el botón del formulario) se probó: (a) login con `gestora.alquileres@ejemplo.test` (rol solo en Alquileres) → `GET /` redirige a `/sin-acceso` (T19, una dirección); (b) login con `m.cardozo@epe.com.ar` (rol solo CLM) → `GET /` da 200, `GET /alquileres` redirige a `/sin-acceso` (T19, la otra dirección); (c) login con un email no registrado → rechazado, redirige a `/login?error=CredentialsSignin`; (d) sin sesión, `GET /` redirige a `/login`. Los cuatro casos dieron el resultado esperado contra el servidor real, no solo contra la lógica pura ya cubierta por `src/lib/acceso-modulo.test.ts`.
