@@ -1,4 +1,4 @@
-import {
+import type {
   AnotacionSeguimiento,
   Contrato,
   Documento,
@@ -11,7 +11,7 @@ import {
   RolId,
   TipoContrato,
 } from "../types";
-import { Usuario } from "./mock-catalogos";
+import type { Usuario } from "./mock-catalogos";
 
 /**
  * Esquema de la planilla de Google Sheets — nombres de hoja y columnas.
