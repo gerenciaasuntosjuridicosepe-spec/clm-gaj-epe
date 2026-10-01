@@ -27,6 +27,15 @@ describe("crearRepositorio (F0-4)", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.resetModules();
+    // crearRepositorio() cachea instancias en globalThis a propósito (ver el
+    // comentario en index.ts: Turbopack puede darle a cada "layer" su propio
+    // módulo, pero globalThis es el mismo proceso real) — `vi.resetModules()`
+    // limpia el registro de módulos, pero NO globalThis, así que hay que
+    // borrar la caché a mano entre pruebas para no filtrar un repositorio ya
+    // creado (con otro NODE_ENV) de una prueba a la siguiente.
+    const g = globalThis as typeof globalThis & { __alquileresRepos?: unknown; __alquileresTransporteHttp?: unknown };
+    delete g.__alquileresRepos;
+    delete g.__alquileresTransporteHttp;
   });
 
   it("sin GOOGLE_SHEETS_ALQUILERES_ID configurado, devuelve el repositorio mock", async () => {

@@ -70,7 +70,7 @@ export class RepositorioSheets<T extends { version: number; activo: boolean }> i
     return `${this.opciones.prefijo}-${String(numeroFila).padStart(4, "0")}`;
   }
 
-  async crear(datos: Omit<T, "version" | "activo"> & Partial<Pick<T, "activo">>, creadoPor: string): Promise<T> {
+  async crear(datos: Partial<T>, creadoPor: string): Promise<T> {
     // R1: el número del ID es la fila que la propia API asigna al agregar a la hoja de secuencia — nunca se reutiliza.
     const { filaNumero } = await this.opciones.transporte.agregarFila(this.opciones.hojaSecuencia, [ahoraIso()]);
     const id = this.generarId(filaNumero);

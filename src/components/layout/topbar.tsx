@@ -1,17 +1,37 @@
 "use client";
 import { BellRing, LogOut } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
-import { useRol } from "@/lib/session";
+import { usePathname } from "next/navigation";
+import { ROLES } from "@/lib/permisos";
+import { ETIQUETAS_ROL_ALQUILERES } from "@/lib/alquileres/permisos";
 
 /**
- * Topbar — sección 3.6 del design system.
- * Ya no tiene selector de rol simulado: el rol viene de la sesión real
- * (Google + tabla de Usuarios, ver src/auth.ts). "Salir" cierra la sesión.
+ * Topbar — sección 3.6 del design system. Compartido por el CLM y por
+ * Alquileres (D5: cada módulo tiene su grupo de menú propio, pero el shell
+ * visual —sidebar/topbar— se reutiliza, sección 2 del PRD v2.1: "Qué se
+ * reutiliza").
+ *
+ * Antes leía el rol con `useRol()` (CLM, `src/lib/session.tsx`), que
+ * lanza si `rolId` no está resuelto — rompía esta pantalla para una sesión
+ * que solo tiene rol en Alquileres (D12: un usuario puede no tener rolId
+ * del CLM en absoluto). Ahora lee la sesión directo y elige la etiqueta de
+ * rol/módulo según la ruta activa, sin asumir que siempre hay un rolId del
+ * CLM. El comportamiento para una sesión CON rolId (todo el CLM existente)
+ * no cambia: mismo texto, mismo cálculo de iniciales.
  */
 export function Topbar({ titulo }: { titulo: string }) {
-  const { rol } = useRol();
   const { data: session } = useSession();
-  const nombre = session?.user?.name ?? rol.nombre;
+  const pathname = usePathname();
+  const enAlquileres = pathname?.startsWith("/alquileres") ?? false;
+
+  const nombre = session?.user?.name ?? "Usuario";
+  const rolId = session?.user?.rolId;
+  const rolAlquileres = session?.user?.rolAlquileres;
+  const etiquetaRol = enAlquileres
+    ? (rolAlquileres ? ETIQUETAS_ROL_ALQUILERES[rolAlquileres] : "Sin rol en Alquileres")
+    : (rolId ? ROLES[rolId].nombre : "Sin rol en el CLM");
+  const etiquetaModulo = enAlquileres ? "GAJ · Alquileres" : "GAJ · CLM v1";
+
   const iniciales = nombre
     .split(" ")
     .map((w) => w[0])
@@ -23,7 +43,7 @@ export function Topbar({ titulo }: { titulo: string }) {
     <div className="flex h-[var(--topbar-h)] flex-shrink-0 items-center gap-3.5 bg-brand-blue-900 px-5 text-white">
       <span className="font-[var(--font-display)] text-[var(--text-lg)] font-bold">{titulo}</span>
       <span className="rounded-[var(--radius-pill)] border border-brand-orange-300/35 bg-[var(--overlay-brand-12)] px-2.5 py-1 text-[var(--text-xs)] font-bold uppercase tracking-wide text-brand-orange-300">
-        GAJ · CLM v1
+        {etiquetaModulo}
       </span>
       <div className="flex-1" />
 
@@ -38,7 +58,7 @@ export function Topbar({ titulo }: { titulo: string }) {
         </div>
         <div className="leading-tight">
           <div className="text-[var(--text-sm)] font-semibold">{nombre}</div>
-          <div className="text-[var(--text-2xs)] text-white/65">{rol.nombre}</div>
+          <div className="text-[var(--text-2xs)] text-white/65">{etiquetaRol}</div>
         </div>
       </div>
 

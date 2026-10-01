@@ -38,28 +38,39 @@ Pruebas técnicas a-d: runbooks en `docs/runbooks/prueba-a-login.md`, `prueba-b-
 
 ## Tarea actual
 
-Fase 1 — cimientos del módulo de Alquileres. Hecho hasta ahora (ver bitácora para el detalle de cada commit): modelo de datos (`tipos.ts`), catálogos semilla, `fechas.ts` propio, las 20 reglas de negocio puras que se pueden implementar sin el libro original (R2, R3'/R3a, R4', R5, R8, R9, R13-R20 + validaciones + alertas A1-A8 + campos calculados C1/C4/C6 + legítimo abono + comunicaciones), esquema de la planilla de Alquileres + script de aprovisionamiento, y roles por módulo (D3/D12) con guardia de acceso.
+Fase 1 — cimientos del módulo de Alquileres. Hecho hasta ahora (ver bitácora para el detalle de cada commit):
+- Modelo de datos (`tipos.ts`), catálogos semilla, `fechas.ts` propio.
+- Las 20 reglas de negocio puras que se pueden implementar sin el libro original (R2, R3'/R3a, R4', R5, R8, R9, R13-R20 + validaciones + alertas A1-A8 + campos calculados C1/C4/C6 + legítimo abono + comunicaciones).
+- Esquema de la planilla de Alquileres + script de aprovisionamiento (T21).
+- Roles por módulo (D3/D12) con guardia de acceso (proxy + `/sin-acceso`), login de desarrollo (dev-bypass) y verificación en vivo de T19.
+- Repositorio genérico sobre Sheets (R1, T20, T26, prueba técnica d) + mock en memoria, con fake/doble completo de la API de Sheets para probar sin Google real.
+- Escritura restringida de Usuarios desde Alquileres (T27).
+- Matriz de permisos del módulo (`permisos.ts`) y guardia de rutas de API propia (`alquileres/auth-guard.ts`, RF-42).
+- Primer ABM real de punta a punta: Inmuebles (RF-05), con página + ruta de API + componente cliente, probado en vivo contra `npm run dev` (alta vía API, visible en la página de listado, bloqueado para quien no tiene rol de Alquileres).
 
-Falta para cerrar Fase 1: el repositorio genérico sobre Sheets + fake/doble de la API de Sheets + mock en memoria con secuencia de IDs y control de versión optimista (R1, T1', T20, T26); después, el ABM mínimo de Inmuebles/Expedientes/Personas/Actuaciones (páginas + rutas de API bajo `app/alquileres` y `app/api/alquileres`, con su propia guardia RF-42/T18); y el ítem de menú propio (RF-41) filtrado por `rolAlquileres`.
+Falta para cerrar Fase 1: replicar el patrón de Inmuebles para Expedientes, Personas (con enmascarado LECTOR) y Actuaciones; ítem de menú propio (RF-41) filtrado por `rolAlquileres`; cerrar la fase con revisión adversarial completa y `docs/TRAZABILIDAD.md` al día.
 
-**Nota sobre continuidad (2026-10-01):** esta sesión retomó un corte: un subagente al que se le había encargado "esquema + repositorio Sheets de Alquileres" llegó a terminar el esquema y el script de aprovisionamiento (verificados y commiteados en `386a3c0`) pero se cortó antes de empezar el repositorio/fake — ese subagente nunca llegó a correr pruebas ni a commitear nada él mismo; todo lo que había quedado sin commitear en el working tree se revisó a mano, se verificó (`npm test`/`npm run lint`/`npx tsc --noEmit`/`npm run build`) y se commiteó en esta sesión. El repositorio genérico sigue pendiente, es la próxima tarea.
+**Nota sobre continuidad:** esta fase se desarrolló a lo largo de varias sesiones interrumpidas por el límite de uso compartido de la cuenta (no un error del desarrollo — se retoma automáticamente). Cada retoma empezó re-verificando `git log`/`git status`/`git diff`/`npm test`/`npx tsc --noEmit` antes de seguir, sin asumir que el estado dejado por la sesión anterior (o por un subagente) ya estaba probado.
 
 ## Próximas tareas (orden previsto)
 
-1. `src/lib/alquileres/repositorio/` — interfaces genéricas, cliente Sheets propio (`GOOGLE_SHEETS_ALQUILERES_ID`), implementación mock en memoria, implementación real sobre Sheets, un fake/doble completo de la API de Sheets (para probar sin Google real) con secuencia de IDs por prefijo (R1), control de versión optimista (T20), escritura multi-fila atómica, caché corta de lecturas, y aislamiento total respecto de la planilla del CLM (T26).
-2. ABM mínimo de Inmuebles/Expedientes/Personas/Actuaciones: páginas bajo `src/app/alquileres/**` + rutas bajo `src/app/api/alquileres/**`, con guardia de sesión/rol en cada una (RF-42) y su propia prueba genérica (igual patrón que `rutas-guardia-sesion.test.ts`, T18).
-3. Ítem de menú "Alquileres" (RF-41) en el sidebar, filtrado por `rolAlquileres` de la sesión.
-4. Cerrar Fase 1: correr lint/build/test completos, recorrido manual en `npm run dev` (requiere resolver cómo loguearse sin Google real — ver DECISIONES.md, pendiente de registrar esa decisión), completar `docs/TRAZABILIDAD.md` con las filas de Fase 1, revisión adversarial.
+1. Expedientes (RF-07/RF-08): mismo patrón que Inmuebles, con la validación de R2 (vínculo al mismo inmueble) y los dos formatos de `nro_expediente` (T11, ya implementado en `validaciones.ts`).
+2. Personas (RF-09): mismo patrón, con `buscarPersonaDuplicada` (R9) antes de crear, y enmascarado de campos personales para LECTOR (`enmascararSiLector`, ya implementado en `permisos.ts` — falta aplicarlo en la ruta de lectura).
+3. Actuaciones (RF-11/RF-12): el ABM más complejo — alta rápida (tipo, inmueble, sector, estado), validación R2/R3'/R4' según corresponda, generación de hitos al crear un CONTRATO (RF-19, usa R13 + la semilla de CFG_HITOS_TIPO).
+4. Ítem de menú "Alquileres" (RF-41) en el sidebar, filtrado por `rolAlquileres` de la sesión (hoy `Sidebar` es estático, sin filtrar por rol en absoluto — ni para el CLM; ver hallazgo en "revisión adversarial").
+5. Cerrar Fase 1: correr lint/build/test completos, recorrido manual adicional en `npm run dev`, completar `docs/TRAZABILIDAD.md` con las filas de Fase 1 que falten, revisión adversarial formal antes de pasar a Fase 2.
 
-## Resultado de las últimas pruebas (2026-10-01, antes de seguir con el repositorio)
+## Resultado de las últimas pruebas (2026-10-01)
 
 ```
 > clm-gaj-epe@0.1.0 test
 > vitest run
 
- Test Files  29 passed (29)
-      Tests  244 passed (244)
+ Test Files  37 passed (37)
+      Tests  306 passed (306)
 ```
+
+`npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK — genera (entre otras) `/alquileres/inmuebles` y `/api/alquileres/inmuebles`.
 
 `npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK, genera las mismas rutas que antes más `/sin-acceso`.
 
@@ -244,4 +255,30 @@ Route (app)
   - Sin sesión → `GET /` → 307 a `/login`.
   - Log del servidor sin errores inesperados (el único `[auth][error] CredentialsSignin` que aparece es el esperado, del intento con email no registrado).
 - `npm test`: 244/244 OK. Lint limpio. `npx tsc --noEmit`: limpio.
-- Commit pendiente de hacer a continuación de esta entrada.
+- Commit `a6d511a`.
+
+### 2026-10-01 — Repositorio genérico de Alquileres (commit `07b6c53`)
+
+- `src/lib/alquileres/repositorio/`: interfaces genéricas (`tipos-repositorio.ts`: `RepositorioTabla<T>`, `ConflictoVersionError`), abstracción de transporte (`transporte-sheets.ts`), doble completo en memoria de la API de Sheets (`transporte-sheets-fake.ts` — agregar una fila asigna el próximo número real, `actualizarMultiple` revierte todo si falla a mitad de un lote), implementación real sobre HTTP (`transporte-sheets-http.ts`, apunta a `GOOGLE_SHEETS_ALQUILERES_ID`, nunca se ejecuta contra Google real), `repositorio-sheets.ts` (R1: ID = número de fila de la secuencia; M15: control optimista; caché de 60s invalidada en cada escritura; `actualizarMultiple` para R3a/prueba técnica d), `repositorio-mock.ts` (misma interfaz en memoria), `entorno.ts` (duplicado deliberado de `exigirMockPermitido` para no romper el aislamiento de T26 por una utilidad de 5 líneas), `index.ts` (fábrica `crearRepositorio()`).
+- `aislamiento.test.ts` (T26): análisis estático que falla si algo en `repositorio/` importa de `src/lib/data/*` del CLM o lee `GOOGLE_SHEETS_SPREADSHEET_ID`, y la dirección inversa (el cliente del CLM no conoce `GOOGLE_SHEETS_ALQUILERES_ID`).
+- 50 pruebas nuevas, incluido T1' (20 altas concurrentes sin IDs repetidos, contra el fake y contra el mock) y T20 (conflicto de versión, individual y en lote atómico).
+- `npm test`: 294/294 OK. `npx tsc --noEmit`: limpio. Lint limpio. Build OK.
+
+### 2026-10-01 — Escritura restringida de Usuarios desde Alquileres (commit `762efdf`, T27)
+
+- `src/lib/alquileres/usuarios-alquileres.ts`: única función de escritura de Usuarios expuesta a Alquileres (`actualizarAccesoAlquileres`), filtra en runtime para quedarse solo con `rolAlquileres`/`activo` aunque el llamador intente mandar otros campos.
+- Prueba T27: confirma que un intento de tocar `rolId`/`nombre`/`email` junto con los dos campos permitidos solo aplica estos últimos.
+- `npm test`: 297/297 OK. Lint limpio. `npx tsc --noEmit`: limpio.
+
+### 2026-10-01 — Permisos del módulo, guardia de API, y primer ABM real (Inmuebles)
+
+- `src/lib/alquileres/permisos.ts`: matriz de permisos (PRD v1 sección 3) para gestión/personas/hitos/administración, `puedeAlquileres()`, `enmascararSiLector()` (defensa en profundidad para datos personales de PERSONAS), `ETIQUETAS_ROL_ALQUILERES`. 8 pruebas.
+- `src/lib/alquileres/auth-guard.ts`: `requerirSesionAlquileres()`/`requerirAccionAlquileres()` — análogo al `auth-guard.ts` del CLM pero chequeando `rolAlquileres` (401 sin sesión, 403 con sesión pero sin rol del módulo).
+- `src/lib/alquileres/datos/{inmuebles,expedientes,personas,actuaciones}.ts`: wiring de `crearRepositorio()` para cada tabla (solo Inmuebles tiene UI todavía; las otras tres quedan listas para las próximas tareas).
+- Primer ABM de punta a punta: `src/app/api/alquileres/inmuebles/route.ts` (GET/POST, con las validaciones de RF-05: domicilio/localidad obligatorios, formato de partida, partida duplicada entre activos) + `src/app/alquileres/inmuebles/page.tsx` + `src/components/pages/alquileres-inmuebles-client.tsx`.
+- La prueba genérica de cobertura de guardia (`rutas-guardia-sesion.test.ts`, F0-1/RF-42) pasó de 14 a 15 casos automáticamente al agregar la ruta nueva, sin tocar la prueba — confirma que RF-42 queda cubierto para cualquier ruta futura de Alquileres sin esfuerzo adicional.
+- **Hallazgo en vivo (`npm run dev` con dev-bypass) y corrección:** `src/components/layout/topbar.tsx` (compartido por el CLM y Alquileres) llamaba a `useRol()` del CLM incondicionalmente, que lanza si la sesión no tiene `rolId` — rompía con 500 cualquier página de Alquileres para una sesión que solo tiene `rolAlquileres` (D12, el caso normal de un usuario de Alquileres sin rol del CLM). Se corrigió para leer la sesión directo y elegir la etiqueta de rol/módulo según la ruta activa (`/alquileres` vs. CLM), sin cambiar el comportamiento para una sesión con `rolId` (todo el CLM existente).
+- **Segundo hallazgo en vivo y corrección:** un alta por `POST /api/alquileres/inmuebles` no aparecía al leer `GET /alquileres/inmuebles` (la página) inmediatamente después — confirmado que es un comportamiento de Next.js/Turbopack con módulos de distintas "layers" (API vs. RSC) teniendo instancias separadas de un mismo módulo, y que el CLM existente tiene exactamente el mismo comportamiento (`POST /api/contratos` + `GET /contratos` reproduce lo mismo, sin tocar ese código). Para Alquileres se corrigió cacheando las instancias de repositorio en `globalThis` en vez de en una variable de módulo (`src/lib/alquileres/repositorio/index.ts`) — ver `docs/DECISIONES.md` para el detalle completo y las alternativas consideradas.
+- Verificado en vivo contra `npm run dev` (con el fix aplicado): login como `gestora.alquileres@ejemplo.test` (GESTOR de Alquileres) → `POST /api/alquileres/inmuebles` crea `INM-0001` → `GET /alquileres/inmuebles` lo muestra → `GET /` (CLM) sigue bloqueado con redirect a `/sin-acceso` (T19 no se rompió). Log del servidor sin errores.
+- `npm test`: 306/306 OK. `npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK, genera `/alquileres/inmuebles` y `/api/alquileres/inmuebles`.
+- Commit pendiente de hacer a continuación de esta entrada (agrupa: permisos.ts + test, auth-guard.ts de alquileres, datos/*.ts, ABM de inmuebles, fix de topbar.tsx, fix de caché en globalThis con su test, y el ajuste de tipo `crear(datos: Partial<T>, ...)` en el repositorio genérico que hizo falta para que los 4 `datos/*.ts` compilaran).

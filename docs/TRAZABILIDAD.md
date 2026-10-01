@@ -45,15 +45,16 @@ Se completa incrementalmente, fase por fase. Lo que no tiene fila todavía es po
 | T28 | Diferencia monto_total_reconocido vs. meses × mensual | `reglas/legitimo-abono.ts` | `reglas/legitimo-abono.test.ts` | Hecho |
 | D12 | Hoja Usuarios ampliada (`rol_alquileres`, `activo`), sin romper filas existentes | `src/lib/data/mock-catalogos.ts`, `src/lib/data/sheets-schema.ts` | `src/lib/data/sheets-schema.test.ts` (regresión de filas viejas) | Hecho |
 | D3 | Rol por módulo independiente del rol del CLM | `src/auth.ts`, `src/lib/acceso-modulo.ts` | `src/lib/acceso-modulo.test.ts` | Hecho |
-| R1 | IDs por secuencia atómica, nunca reutilizados | — (repositorio, pendiente) | — | **Pendiente** — próxima tarea (ver `docs/PROGRESO.md`) |
-| T1' | 20 altas simultáneas → IDs distintos y consecutivos | — (repositorio, pendiente) | — | **Pendiente** |
-| T18 | Petición anónima a `/api/alquileres/**` → 401 | — (rutas de Alquileres, pendientes) | — | **Pendiente** — para el CLM ya está cubierto (F0-1) |
-| T20 | Control de versión optimista detecta conflicto | — (repositorio, pendiente) | — | **Pendiente** |
-| T26 | Aislamiento total entre planilla del CLM y de Alquileres | — (repositorio, pendiente) | — | **Pendiente** |
-| T27 | Escritura de Usuarios desde Alquileres solo puede tocar `rol_alquileres`/`activo` | — (pendiente: wrapper restringido sobre `actualizarUsuario`) | — | **Pendiente** |
+| R1 | IDs por secuencia atómica, nunca reutilizados | `src/lib/alquileres/repositorio/repositorio-sheets.ts`, `repositorio-mock.ts` | `repositorio-sheets.test.ts`, `repositorio-mock.test.ts` | Hecho |
+| T1' | 20 altas simultáneas → IDs distintos y consecutivos | `repositorio-sheets.ts`, `repositorio-mock.ts` | `repositorio-sheets.test.ts`, `repositorio-mock.test.ts` (contra el fake y contra el mock) | Hecho |
+| T18 | Petición anónima a `/api/alquileres/**` → 401 | `src/lib/alquileres/auth-guard.ts`, `src/app/api/alquileres/inmuebles/route.ts` | `src/app/api/rutas-guardia-sesion.test.ts` (genérica — cubre automáticamente cualquier ruta nueva bajo `app/api/alquileres/**`) | Hecho para la ruta que existe (Inmuebles); se extiende sola a cada ruta nueva |
+| T20 | Control de versión optimista detecta conflicto | `repositorio-sheets.ts` (`actualizar`, `actualizarMultiple`), `repositorio-mock.ts` | `repositorio-sheets.test.ts`, `repositorio-mock.test.ts` | Hecho |
+| T26 | Aislamiento total entre planilla del CLM y de Alquileres | `src/lib/alquileres/repositorio/*.ts` (nunca importan de `src/lib/data/*`) | `src/lib/alquileres/repositorio/aislamiento.test.ts` | Hecho |
+| T27 | Escritura de Usuarios desde Alquileres solo puede tocar `rol_alquileres`/`activo` | `src/lib/alquileres/usuarios-alquileres.ts` | `usuarios-alquileres.test.ts` | Hecho |
 | R6, R10, R11, R12 | (reglas del libro original v0.1, texto no disponible) | — | — | No se inventan — ver `docs/PENDIENTES-HUMANOS.md` punto 1 |
+| RF-05 | Alta, edición y baja lógica de inmuebles (edición/baja: pendientes) | `src/app/api/alquileres/inmuebles/route.ts`, `src/app/alquileres/inmuebles/page.tsx` | Verificado en vivo contra `npm run dev` (ver `docs/PROGRESO.md`); falta una prueba automática de las validaciones de la ruta (partida duplicada, formato) | Alta hecha y verificada en vivo; prueba automática de la ruta todavía pendiente |
 | RF-41 | Ítem de menú "Alquileres" filtrado por rol | — (pendiente) | — | **Pendiente** |
-| RF-42 | Cobertura de guardia en `app/api/alquileres/**` | `src/lib/test-utils/recorrer-rutas-api.ts` ya es genérica y cubre cualquier ruta nueva bajo `app/api/alquileres/**` automáticamente | — (se activará solo con que existan rutas ahí) | Infraestructura lista, sin rutas de Alquileres todavía que probar |
+| RF-42 | Cobertura de guardia en `app/api/alquileres/**` | `src/lib/test-utils/recorrer-rutas-api.ts` (genérica) | `src/app/api/rutas-guardia-sesion.test.ts` — pasó de 14 a 15 casos al agregar la ruta de Inmuebles, sin tocar la prueba | Hecho, y se extiende sola a cada ruta nueva |
 
 ## Fase 2 — hitos, alertas y dashboard
 

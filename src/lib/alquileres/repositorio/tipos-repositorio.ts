@@ -53,10 +53,15 @@ export interface RepositorioTabla<T extends { version: number; activo: boolean }
   obtener(id: string): Promise<T | undefined>;
   /**
    * Crea un registro nuevo: asigna el ID (vía secuencia atómica por
-   * prefijo, R1), `version = 1` y los campos de auditoría de alta. Los
-   * datos no deben incluir el campo de ID de la tabla (se asigna acá).
+   * prefijo, R1), `version = 1` y los campos de auditoría de alta — si
+   * `datos` incluye alguno de esos campos (o el de ID), se ignora, siempre
+   * se generan acá. `Partial<T>` en vez de `Omit<T, campoId | ...>` porque
+   * el nombre del campo de ID varía por tabla (no conviene un segundo
+   * parámetro de tipo solo para expresarlo); la obligatoriedad de cada
+   * campo de negocio al crear es una regla propia de cada tabla (R4', por
+   * ejemplo), no algo que el repositorio genérico deba tipar.
    */
-  crear(datos: Omit<T, "version" | "activo"> & Partial<Pick<T, "activo">>, creadoPor: string): Promise<T>;
+  crear(datos: Partial<T>, creadoPor: string): Promise<T>;
   /**
    * Actualiza un registro existente con control optimista: si
    * `versionEsperada` no coincide con la versión real, lanza

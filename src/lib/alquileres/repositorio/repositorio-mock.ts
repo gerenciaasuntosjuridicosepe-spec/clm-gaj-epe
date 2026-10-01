@@ -40,7 +40,7 @@ export class RepositorioMock<T extends { version: number; activo: boolean }> imp
     return this.datos.find((o) => (o[this.opciones.campoId] as unknown) === id);
   }
 
-  async crear(datos: Omit<T, "version" | "activo"> & Partial<Pick<T, "activo">>, creadoPor: string): Promise<T> {
+  async crear(datos: Partial<T>, creadoPor: string): Promise<T> {
     const id = this.generarId();
     const ahora = ahoraIso();
     const completo = {
