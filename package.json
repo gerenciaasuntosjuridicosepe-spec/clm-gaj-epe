@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "setup:sheet": "node scripts/setup-sheet.mjs"
+    "setup:sheet": "node scripts/setup-sheet.mjs",
+    "setup:sheet:alquileres": "node scripts/setup-sheet-alquileres.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",
