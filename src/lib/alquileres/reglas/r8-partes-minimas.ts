@@ -4,7 +4,7 @@
  */
 import type { ActuacionParte, TipoActuacion } from "../tipos";
 
-export interface ResultadoValidacion {
+interface ResultadoValidacion {
   valida: boolean;
   error?: string;
 }

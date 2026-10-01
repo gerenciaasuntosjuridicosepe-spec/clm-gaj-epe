@@ -15,7 +15,7 @@
  */
 import type { Actuacion } from "../tipos";
 
-export interface ResultadoValidacion {
+interface ResultadoValidacion {
   valida: boolean;
   error?: string;
 }

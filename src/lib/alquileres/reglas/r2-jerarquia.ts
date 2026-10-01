@@ -4,7 +4,7 @@
  */
 import type { Expediente } from "../tipos";
 
-export interface ResultadoValidacion {
+interface ResultadoValidacion {
   valida: boolean;
   error?: string;
 }

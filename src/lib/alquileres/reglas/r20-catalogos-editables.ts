@@ -6,7 +6,7 @@
  */
 import type { CatalogoValor } from "../tipos";
 
-export interface ResultadoValidacion {
+interface ResultadoValidacion {
   valida: boolean;
   error?: string;
 }
