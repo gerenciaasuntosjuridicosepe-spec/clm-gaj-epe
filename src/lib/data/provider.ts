@@ -3,6 +3,7 @@ import { MOCK_CONTRATOS } from "./mock-contratos";
 import { googleSheetsConfigurado } from "./google-sheets-client";
 import { GoogleSheetsContratosProvider } from "./google-sheets-provider";
 import { puedeVerContrato } from "../permisos";
+import { exigirMockPermitido } from "./entorno";
 
 /**
  * Contrato con el almacenamiento de datos.
@@ -37,6 +38,10 @@ export interface ContratosProvider {
 }
 
 class MockContratosProvider implements ContratosProvider {
+  constructor() {
+    exigirMockPermitido("contratos");
+  }
+
   private data: Contrato[] = MOCK_CONTRATOS;
 
   async listar(): Promise<Contrato[]> {

@@ -2,6 +2,7 @@ import { MOCK_USUARIOS, Usuario } from "./mock-catalogos";
 import { googleSheetsConfigurado } from "./google-sheets-client";
 import { leerFilas, agregarFila, actualizarFila } from "./google-sheets-client";
 import { SHEET_NAMES, USUARIOS_COLUMNS, filaAUsuario, usuarioAFila } from "./sheets-schema";
+import { exigirMockPermitido } from "./entorno";
 
 /**
  * Usuarios del CLM — resuelve el rol a partir del email de Google (login,
@@ -16,6 +17,7 @@ import { SHEET_NAMES, USUARIOS_COLUMNS, filaAUsuario, usuarioAFila } from "./she
 let mockUsuarios: Usuario[] | null = null;
 
 function getMockUsuarios(): Usuario[] {
+  exigirMockPermitido("usuarios");
   if (!mockUsuarios) mockUsuarios = [...MOCK_USUARIOS];
   return mockUsuarios;
 }

@@ -8,6 +8,7 @@ import {
   filaATipoContrato,
   tipoContratoAFila,
 } from "./sheets-schema";
+import { exigirMockPermitido } from "./entorno";
 
 /**
  * Catálogos administrables desde Administración (Sectores, Tipos de
@@ -31,11 +32,13 @@ let mockTiposAnotacion: string[] | null = null;
 let mockTiposGarantia: string[] | null = null;
 
 function getMockSectores(): SectorEmisor[] {
+  exigirMockPermitido("sectores");
   if (!mockSectores) mockSectores = [...MOCK_SECTORES];
   return mockSectores;
 }
 
 function getMockTiposContrato(): TipoContratoItem[] {
+  exigirMockPermitido("tipos de contrato");
   if (!mockTiposContrato) {
     mockTiposContrato = MOCK_TIPOS_CONTRATO.map((nombre) => ({
       nombre,
@@ -46,11 +49,13 @@ function getMockTiposContrato(): TipoContratoItem[] {
 }
 
 function getMockTiposAnotacion(): string[] {
+  exigirMockPermitido("tipos de anotación");
   if (!mockTiposAnotacion) mockTiposAnotacion = [...MOCK_TIPOS_ANOTACION];
   return mockTiposAnotacion;
 }
 
 function getMockTiposGarantia(): string[] {
+  exigirMockPermitido("tipos de garantía");
   if (!mockTiposGarantia) mockTiposGarantia = [...MOCK_TIPOS_GARANTIA];
   return mockTiposGarantia;
 }
