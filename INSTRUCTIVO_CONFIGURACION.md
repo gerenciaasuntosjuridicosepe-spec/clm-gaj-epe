@@ -30,7 +30,7 @@ Sin estas tres variables, `npm run dev` levanta igual pero el botón "Continuar 
 ## 1. Instalar y correr el proyecto en local (con datos de ejemplo)
 
 ```
-cd C:\proyectos\clm-gaj-epe
+cd <carpeta del proyecto>
 npm install
 npm run dev
 ```
