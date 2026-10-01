@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getContratosProvider } from "@/lib/data/provider";
+import { getContratosProvider, listarVisibles } from "@/lib/data/provider";
 import { Contrato } from "@/lib/types";
 import { requerirSesion, esRespuestaError } from "@/lib/auth-guard";
 import { puedeVerContrato } from "@/lib/permisos";
@@ -13,12 +13,17 @@ import { puedeVerContrato } from "@/lib/permisos";
  * directamente.
  */
 export async function GET() {
-  // Sin filtrar por rol a propósito: hoy nada del lado del cliente llama a
-  // este GET (las páginas de lectura usan `listarVisibles()` en el
-  // servidor, ver hallazgo crítico #2 del informe). Si el día de mañana
-  // algún componente cliente necesita pegarle a esta ruta, hay que filtrar
-  // acá también antes de devolver — no asumir que el llamador ya lo hizo.
-  const contratos = await getContratosProvider().listar();
+  // F0-1 (hallazgo crítico): antes este handler no exigía sesión y
+  // devolvía TODOS los contratos sin filtrar por rol — una petición
+  // anónima a /api/contratos exponía datos completos (incluidos datos
+  // personales de contraparte). Ahora exige sesión y filtra con el mismo
+  // criterio que usan las páginas de servidor (`listarVisibles`), para que
+  // ningún llamador (humano o script) reciba más de lo que su rol permite,
+  // sea cual sea el canal por el que entre.
+  const sesion = await requerirSesion();
+  if (esRespuestaError(sesion)) return sesion;
+
+  const contratos = await listarVisibles(sesion.rolId);
   return NextResponse.json(contratos);
 }
 

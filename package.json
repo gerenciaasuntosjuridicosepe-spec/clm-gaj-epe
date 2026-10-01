@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "setup:sheet": "node scripts/setup-sheet.mjs"
   },
   "dependencies": {
@@ -22,7 +24,7 @@
     "framer-motion": "^12.43.0",
     "google-auth-library": "^11.0.0",
     "lucide-react": "^1.28.0",
-    "next": "16.3.0",
+    "next": "16.3.8",
     "next-auth": "^5.0.0-beta.32",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -31,13 +33,14 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.0.3"
   }
 }
