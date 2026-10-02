@@ -55,28 +55,28 @@ Cerrada el 2026-10-01. Se construyeron los cimientos completos del módulo (ver 
 
 ## Tarea actual
 
-Fase 2 — hitos, alertas y dashboard (PRD v2.1 sección 9: "como el v1, con `fechas.ts` del módulo, calendario (RF-40) y alertas propias"; condición de salida: "los ejemplos numéricos T2-T10 dan el resultado esperado" — ya satisfecho por las reglas puras de Fase 1, falta la UI/orquestación que los conecta a datos reales).
+Fase 2 — hitos, alertas y dashboard. Hecho hasta ahora: RF-19 (generación automática de hitos al crear un CONTRATO) y RF-20 (cumplimiento de un hito, con recálculo de R13/R14), ambos verificados en vivo de punta a punta.
 
 ## Próximas tareas (orden previsto)
 
-1. RF-19: generación automática de hitos al crear un CONTRATO (una fila de `ACTUACION_HITOS` por cada fila de `CFG_HITOS_TIPO` del tipo correspondiente, con `fecha_prevista` según R13) — falta el repositorio de `ACTUACION_HITOS`/`HITOS`/`CFG_HITOS_TIPO` (wiring análogo a `datos/inmuebles.ts`) y el servicio que lo orquesta.
-2. RF-20/RF-21: cumplir un hito (fecha hoy o anterior, recalcula R14/R13) y reprogramar/marcar NO_APLICA.
+1. RF-21: reprogramar un hito (`reprogramada = TRUE`, pide motivo, R13 deja de recalcularlo — la regla pura de R13 ya respeta `reprogramada`, falta la ruta/UI) y marcar NO_APLICA (con motivo).
+2. R17/R18 wiring: aplicar `aplicarCambioTipoActuacion` cuando se cambia el tipo de una actuación (RF-14, todavía no hay ruta para esto), y las condiciones automáticas de NO_APLICA de R18 (H-02 si el sector no es SUCURSAL, H-03 si H-02/H-21 ya cumplidos, H-04 si hay PROPUESTA_LOCADOR) — hoy son funciones puras probadas pero nadie las invoca todavía desde una ruta.
 3. Dashboard (sección 8 del PRD v1): tarjetas de indicadores, cola de trabajo con las alertas A1-A8 ya implementadas como reglas puras, gráficos (Recharts, ya instalado).
 4. Calendario propio del módulo (RF-40): vencimientos efectivos e hitos previstos.
 5. Alertas (RF del v1 sección 7.1 adaptado): pantalla propia, reutilizando las funciones de `reglas/alertas.ts`.
 6. Cerrar Fase 2: verificar que T2-T10 (ya reproducidos en las pruebas de reglas) se vean también reflejados correctamente end-to-end en el dashboard con datos de prueba ficticios, revisión adversarial, `docs/TRAZABILIDAD.md` al día.
 
-## Resultado de las últimas pruebas (2026-10-01, cierre de Fase 1)
+## Resultado de las últimas pruebas (2026-10-01)
 
 ```
 > clm-gaj-epe@0.1.0 test
 > vitest run
 
- Test Files  38 passed (38)
-      Tests  312 passed (312)
+ Test Files  40 passed (40)
+      Tests  327 passed (327)
 ```
 
-`npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK — genera, entre otras, las 4 páginas (`/alquileres/{inmuebles,expedientes,personas,actuaciones}`) y las 4 rutas de API (`/api/alquileres/{inmuebles,expedientes,personas,actuaciones}`) más `/sin-acceso` y todas las rutas del CLM sin cambios.
+`npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK — genera, entre otras, las 4 páginas (`/alquileres/{inmuebles,expedientes,personas,actuaciones}`), las 4 rutas de API raíz y `/api/alquileres/actuaciones/[id]/hitos`, más `/sin-acceso` y todas las rutas del CLM sin cambios.
 
 ## Resultado de las últimas pruebas (Fase 0, cierre)
 
@@ -315,3 +315,18 @@ Route (app)
 - `npm test`: 309/309 OK (sin pruebas nuevas — es un cambio de UI, verificado en vivo y por `tsc`/build, no con una prueba de componente). `npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK.
 
 **Con esto se completan todas las "próximas tareas" que tenía anotadas Fase 1.** Antes de declarar la fase cerrada falta: revisión adversarial formal (sección 6.3 del encargo) y una pasada de `docs/TRAZABILIDAD.md` para confirmar que no quedó ningún requisito de Fase 1 sin su fila.
+
+### 2026-10-01 — Revisión adversarial y cierre formal de Fase 1 (commits `f0d4d06`, `23d2954`)
+
+- Revisión adversarial completa (permisos, datos personales, condiciones de carrera, fechas, casos borde) — ver el detalle en la sección "Hallazgos de la revisión adversarial" más abajo. Encontró y corrigió un bug real: `POST /api/alquileres/actuaciones` no validaba R3' cuando faltaba `actuacion_anterior_id`, dejando pasar una ADENDA/LEGITIMO_ABONO sin ese campo (que R3' exige). Prueba nueva de la ruta (`actuaciones/route.test.ts`) reproduce el caso. Documentó (sin corregir, riesgo aceptado a la escala de GAJ) 3 ventanas de carrera "leer para chequear unicidad, después crear" en las altas de inmuebles/expedientes/personas, con comentarios `// TODO` en el código.
+- Cierre formal: `docs/PROGRESO.md` y `docs/TRAZABILIDAD.md` actualizados, Fase 1 marcada "Cerrada", Fase 2 abierta como tarea actual.
+- `npm test`: 312/312 OK.
+
+### 2026-10-01 — Fase 2: generación de hitos (RF-19) y cumplimiento de hitos (RF-20)
+
+- `reglas/rf19-generar-hitos.ts`: genera las filas de `ACTUACION_HITOS` al crear un CONTRATO, con `fecha_prevista` según R13. Punto no explícito en el PRD, resuelto por lectura cuidadosa de R7': los hitos `ANTES_FIN_CONTRATO` (H-01, H-04) de una actuación nueva se cuentan desde el vencimiento efectivo de la actuación ANTERIOR en la cadena (la actuación que se crea todavía no tiene `fecha_fin` — eso se carga al formalizar, RF-12), saltando un LEGITIMO_ABONO intermedio si lo hay (`buscarContratoPredecesor`, T8). Si la actuación es la primera del inmueble (sin predecesor), esos hitos quedan sin `fecha_prevista` — R13 ya devuelve `undefined` en ese caso, no se inventa nada. Los hitos `DESPUES_HITO` (H-02/H-21/H-03) usan la `fecha_prevista` de H-01 recién calculada como referencia (todavía no cumplido). 8 pruebas, incluida la reproducción de T3/T4/T8 encadenados a través de esta función (no solo de R13/R15 por separado).
+- `reglas/rf20-cumplir-hito.ts`: registra el cumplimiento de un hito (fecha hoy o anterior, nunca futura) y recalcula los hitos `DESPUES_HITO` que dependen de él usando la fecha REAL de cumplimiento (no la prevista) — salvo que el dependiente esté `reprogramada = TRUE` o ya `CUMPLIDO` (R13). 6 pruebas, incluida la reproducción exacta de T4 a través de un cumplimiento real.
+- `src/lib/alquileres/datos/actuacion-hitos.ts`: wiring del repositorio genérico para `ACTUACION_HITOS`.
+- Rutas: `POST /api/alquileres/actuaciones` ahora genera los hitos automáticamente tras crear un CONTRATO (config activa: `CFG_HITOS_TIPO_SEED`, estático por ahora — RF-34/Administración con catálogo editable en runtime queda para Fase 4; feriados: lista vacía, sin RF-36/pantalla de carga todavía — R13 ya contempla ese caso con "cómputo aproximado", documentado, no inventado). `GET/PATCH /api/alquileres/actuaciones/[id]/hitos` (nueva): lista hitos de una actuación y registra el cumplimiento de uno, recalculando además el estado derivado de la actuación (R14) cuando corresponde (salvo que esté en un estado manual — DESISTIDA/NO_RENOVADO/ANULADA).
+- **Verificado en vivo de punta a punta** (`npm run dev`): se creó un inmueble y una actuación CONTRATO (primera del inmueble) → se generaron 8 hitos, los `ANTES_FIN_CONTRATO` sin `fecha_prevista` (sin predecesor, correcto) → se cumplió H-01 con fecha `2026-09-15` → el servidor recalculó H-02/H-21 a `2026-09-22` (5 días hábiles después) y H-03 a `2026-09-24` (7 días hábiles después), y la actuación pasó automáticamente de `PENDIENTE_AVISO` a `AVISO_ENVIADO` (R14) — todo en una sola llamada `PATCH`, sin intervención manual sobre el estado. Sin errores en el log del servidor.
+- `npm test`: 327/327 OK. `npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK (agrega `/api/alquileres/actuaciones/[id]/hitos`).

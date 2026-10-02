@@ -61,7 +61,13 @@ Se completa incrementalmente, fase por fase. Lo que no tiene fila todavía es po
 
 ## Fase 2 — hitos, alertas y dashboard
 
-(Pendiente.)
+| ID | Qué exige | Archivo de implementación | Archivo de prueba | Estado |
+| --- | --- | --- | --- | --- |
+| RF-19 | Generación automática de hitos al crear un CONTRATO | `reglas/rf19-generar-hitos.ts`, `src/app/api/alquileres/actuaciones/route.ts` | `reglas/rf19-generar-hitos.test.ts`; verificado en vivo (ver `docs/PROGRESO.md`) | Hecho (feriados: lista vacía, sin RF-36 todavía; config: `CFG_HITOS_TIPO_SEED` estático, sin RF-34 todavía — ambos documentados, no inventados) |
+| RF-20 | Registrar el cumplimiento de un hito (fecha no futura, recalcula R13/R14) | `reglas/rf20-cumplir-hito.ts`, `src/app/api/alquileres/actuaciones/[id]/hitos/route.ts` | `reglas/rf20-cumplir-hito.test.ts` (incluye T4 a través de un cumplimiento real); verificado en vivo | Hecho |
+| RF-21 | Reprogramar un hito / marcar NO_APLICA | — (pendiente) | — | **Pendiente** |
+| RF-40 | Calendario propio del módulo | — (pendiente) | — | **Pendiente** |
+| Dashboard (sección 8 PRD v1) | Tarjetas, cola de trabajo, gráficos | — (pendiente) | — | **Pendiente** — las alertas A1-A8 que alimentan la cola de trabajo ya existen como reglas puras probadas (Fase 1) |
 
 ## Fase 3 — comunicaciones y documentos
 

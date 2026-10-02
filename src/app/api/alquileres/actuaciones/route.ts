@@ -3,7 +3,10 @@ import { esRespuestaError, requerirAccionAlquileres } from "@/lib/alquileres/aut
 import { MATRIZ_GESTION } from "@/lib/alquileres/permisos";
 import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioInmuebles } from "@/lib/alquileres/datos/inmuebles";
+import { getRepositorioActuacionHitos } from "@/lib/alquileres/datos/actuacion-hitos";
 import { validarCadenaActuacion } from "@/lib/alquileres/reglas/r3-cadena-actuaciones";
+import { generarHitosParaActuacion } from "@/lib/alquileres/reglas/rf19-generar-hitos";
+import { CFG_HITOS_TIPO_SEED } from "@/lib/alquileres/catalogos/hitos-seed";
 import type { Actuacion } from "@/lib/alquileres/tipos";
 
 /**
@@ -71,6 +74,33 @@ export async function POST(req: NextRequest) {
     },
     sesion.email
   );
+
+  // RF-19: generación automática de hitos al crear un CONTRATO (R14: ADENDA/
+  // LEGITIMO_ABONO no generan ninguno — generarHitosParaActuacion ya los
+  // filtra). Config activa: CFG_HITOS_TIPO_SEED (todavía no hay una pantalla
+  // de Administración que la haga editable en runtime, RF-34 queda para
+  // Fase 4 — usar el seed ya es "una sola fuente de verdad", solo que
+  // estática por ahora). Feriados: lista vacía (no hay RF-36/pantalla de
+  // carga todavía) — R13 ya contempla ese caso con el cómputo aproximado,
+  // no es un valor inventado, es el comportamiento documentado del PRD.
+  const hitosAGenerar = generarHitosParaActuacion({
+    actuacion: creada,
+    todasLasActuaciones: [...todas, creada],
+    cfgHitosTipo: CFG_HITOS_TIPO_SEED,
+    feriados: [],
+  });
+  for (const hito of hitosAGenerar) {
+    await getRepositorioActuacionHitos().crear(
+      {
+        actuacionId: creada.actuacionId,
+        hitoId: hito.hitoId,
+        estadoHito: hito.estadoHito,
+        fechaPrevista: hito.fechaPrevista,
+        reprogramada: hito.reprogramada,
+      },
+      sesion.email
+    );
+  }
 
   return NextResponse.json(creada, { status: 201 });
 }
