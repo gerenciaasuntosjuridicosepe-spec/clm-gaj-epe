@@ -15,7 +15,7 @@ Documentos de referencia: `docs/DECISIONES.md` (por qué se decidió cada cosa),
 | Paso 0 (verificación de documentos) | **OK** — 2026-09-30, ver DECISIONES.md |
 | Fase 0 (correcciones F0-1 a F0-7 + runbooks a-d) | **Cerrada** — 2026-09-30, ver detalle abajo |
 | Fase 1 (cimientos del módulo) | **Cerrada** — 2026-10-01, ver "Fase 1 — cierre" más abajo |
-| Fase 2 (hitos, alertas, dashboard) | En curso |
+| Fase 2 (hitos, alertas, dashboard, calendario) | **Cerrada** — 2026-10-02, ver "Fase 2 — cierre" más abajo |
 | Fase 3 (comunicaciones y documentos) | No iniciada |
 | Fase 4 (reportes y operación) | No iniciada |
 | Fase 5/6 (piloto, migración) | Fuera de alcance de este desarrollo — requieren dictamen GAJ y datos reales (ver PENDIENTES-HUMANOS.md) |
@@ -53,18 +53,31 @@ Cerrada el 2026-10-01. Se construyeron los cimientos completos del módulo (ver 
 
 **Nota sobre continuidad:** esta fase se desarrolló a lo largo de varias sesiones interrumpidas por el límite de uso compartido de la cuenta (no un error del desarrollo — se retoma automáticamente). Cada retoma empezó re-verificando `git log`/`git status`/`git diff`/`npm test`/`npx tsc --noEmit` antes de seguir, sin asumir que el estado dejado por la sesión anterior (o por un subagente) ya estaba probado.
 
+## Fase 2 — cierre
+
+Cerrada el 2026-10-02. Hitos, alertas, dashboard, calendario (ver la bitácora de abajo para el detalle de cada commit, y `docs/TRAZABILIDAD.md` para el mapeo requisito → código → prueba):
+
+- RF-19 (generación automática de hitos al crear un CONTRATO), RF-20 (cumplimiento de un hito, recalcula R13/R14) y RF-21 (reprogramar/NO_APLICA).
+- RF-12 parcial: formalización guiada (carga de los campos que exige R4', con R5 para la fecha de fin y T20 para la concurrencia) — falta la UI de edición en la ficha de la actuación (queda para cuando exista esa ficha) y el camino para LEGITIMO_ABONO; ver "Próximas tareas".
+- Dashboard (RF-40/sección 8 PRD v1): tarjetas de indicadores + cola de trabajo sobre A1/A4/A5/A6.
+- Alertas: pantalla propia y filtrable sobre la misma cola de trabajo.
+- Calendario (RF-40): vencimientos efectivos (R15/C3) e hitos previstos, con un componente visual propio (no se reutilizó el del CLM tal cual — ver `docs/DECISIONES.md`, 2026-10-02).
+- Revisión adversarial de cierre (más liviana que la de Fase 1, enfocada en lo nuevo de esta fase): se revisó específicamente (a) que `/alquileres/alertas` y `/alquileres/calendario` quedan cubiertas por la guardia de acceso por módulo sin ningún cambio de código — `tieneAccesoARuta()` en `src/lib/acceso-modulo.ts` usa `pathname.startsWith("/alquileres")`, no una lista enumerada de rutas, igual que RF-42 para las rutas de API; (b) que ninguna de las dos pantallas nuevas expone datos de Personas (solo `actuacionId`/`inmuebleId`/`hitoId`), así que no hace falta un chequeo de permiso adicional más allá del que ya exige el módulo (todos los roles tienen "leer" en `MATRIZ_GESTION`); (c) que `diferenciaDias` nunca devuelve algo que haga caer `nivelSemaforo` en la rama "gris" para un evento de vencimiento real. No se encontraron bugs nuevos en esta pasada — el único hallazgo real de esta fase (identidad de clase de `ConflictoVersionError` entre "layers") ya se corrigió y está documentado en `docs/DECISIONES.md` (2026-10-02).
+
+**Limitaciones aceptadas, documentadas, no bloqueantes:** `[id]/hitos/route.ts` todavía no captura `ConflictoVersionError` (responde 500 en vez de 409 ante un conflicto de versión en esa ruta puntual); R17/R18 (cambio de tipo de actuación, RF-14) son reglas puras ya probadas pero sin ruta que las invoque todavía; RF-12 solo tiene la API, no una pantalla de edición propia.
+
 ## Tarea actual
 
-Fase 2 — hitos, alertas y dashboard: **cerrada en lo funcional** (falta la revisión adversarial formal de cierre, ver abajo). Hecho: RF-19, RF-20, RF-21 (hitos), el Dashboard (RF-40/sección 8 del PRD v1), RF-12 parcial (formalización guiada), el Calendario propio del módulo (RF-40) y la pantalla de Alertas (filtrable, A1/A4/A5/A6) — todo verificado en vivo de punta a punta.
+Fase 3 — comunicaciones y documentos. No iniciada todavía.
 
 ## Próximas tareas (orden previsto)
 
-1. Revisión adversarial de cierre de Fase 2 (mismo proceso que se hizo al cerrar Fase 1): releer todo lo construido en esta fase buscando huecos, antes de pasar a Fase 3.
-2. R17/R18 wiring: aplicar `aplicarCambioTipoActuacion` cuando se cambia el tipo de una actuación (RF-14, todavía no hay ruta para esto), y las condiciones automáticas de NO_APLICA de R18 (H-02 si el sector no es SUCURSAL, H-03 si H-02/H-21 ya cumplidos, H-04 si hay PROPUESTA_LOCADOR) — hoy son funciones puras probadas pero nadie las invoca todavía desde una ruta. (Puede hacerse en Fase 2 o diferirse a Fase 3 — a decidir en la revisión adversarial.)
-3. Completar RF-12: hoy `[id]/route.ts` solo cubre la carga de los campos de formalización (R4'/R5/T20) vía API; falta la UI de edición en la ficha de la actuación (hoy la ficha de detalle, más allá del alta rápida, todavía no tiene pantalla propia) y, si corresponde, un endpoint equivalente para LEGITIMO_ABONO (que no pasa por R5 porque no tiene `plazo_meses`).
-4. Nota menor encontrada durante la verificación en vivo de RF-12 (no bloqueante, documentada acá para no perderla): `[id]/hitos/route.ts` llama a `actualizar()` sobre Actuaciones e Hitos sin capturar `ConflictoVersionError` — hoy un conflicto de versión en esa ruta responde 500 en vez de 409. No se tocó en esta tarea para no mezclar alcance; usar `esConflictoVersionError()` (ver más abajo) si se corrige.
-5. Fase 3 (comunicaciones y documentos): plantillas, generación de documentos, ABM de Documentos (que activa A6 de verdad, hoy siempre en 0 porque no hay documentos cargables).
-6. Fase 4 (reportes y operación).
+1. Releer la parte de las PRD (v1 secciones 7.4/7.5 y v2.1) sobre plantillas, generación de documentos y comunicaciones antes de escribir código (mismo método que al iniciar cada fase anterior).
+2. ABM de Documentos (activa A6 de verdad — hoy siempre da 0 porque no hay documentos cargables) y de Comunicaciones (ya hay reglas puras en `reglas/comunicaciones.ts` desde Fase 1, sin ruta que las use todavía).
+3. R17/R18 wiring (diferido de Fase 2, ver arriba): aplicar `aplicarCambioTipoActuacion` (RF-14) y las condiciones automáticas de NO_APLICA de R18 — decidir en el momento si entra en Fase 3 o se difiere más.
+4. Completar RF-12 con una pantalla de edición propia cuando exista la ficha de detalle de la actuación.
+5. Nota menor (no bloqueante, ver "Fase 2 — cierre" arriba): usar `esConflictoVersionError()` en `[id]/hitos/route.ts` si se toca esa ruta por otro motivo.
+6. Fase 4 (reportes y operación), después de Fase 3.
 
 ## Resultado de las últimas pruebas (2026-10-02)
 
