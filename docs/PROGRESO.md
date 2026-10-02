@@ -16,7 +16,7 @@ Documentos de referencia: `docs/DECISIONES.md` (por qué se decidió cada cosa),
 | Fase 0 (correcciones F0-1 a F0-7 + runbooks a-d) | **Cerrada** — 2026-09-30, ver detalle abajo |
 | Fase 1 (cimientos del módulo) | **Cerrada** — 2026-10-01, ver "Fase 1 — cierre" más abajo |
 | Fase 2 (hitos, alertas, dashboard, calendario) | **Cerrada** — 2026-10-02, ver "Fase 2 — cierre" más abajo |
-| Fase 3 (comunicaciones y documentos) | No iniciada |
+| Fase 3 (comunicaciones y documentos) | En curso — comunicaciones (RF-22/23/24), documentos (RF-28) y actos administrativos (RF-29) hechos; generación desde plantilla (RF-25/26/27) pendiente |
 | Fase 4 (reportes y operación) | No iniciada |
 | Fase 5/6 (piloto, migración) | Fuera de alcance de este desarrollo — requieren dictamen GAJ y datos reales (ver PENDIENTES-HUMANOS.md) |
 
@@ -68,16 +68,16 @@ Cerrada el 2026-10-02. Hitos, alertas, dashboard, calendario (ver la bitácora d
 
 ## Tarea actual
 
-Fase 3 — comunicaciones y documentos. No iniciada todavía.
+Fase 3 — comunicaciones y documentos. Hecho hasta ahora: RF-22/23/24 (comunicaciones: borrador de aviso con destinatarios armados desde CONTACTOS_EPE, marcar como enviado, carta documento), RF-28 (adjuntar documento escaneado firmado) y RF-29 (actos administrativos, gatean FORMALIZADA de LEGITIMO_ABONO) — todo verificado en vivo de punta a punta. RF-25/26/27 (generación de contrato/adenda desde plantilla de Google Docs) sigue pendiente — necesita la API real de Docs, fuera de los límites duros de este desarrollo.
 
 ## Próximas tareas (orden previsto)
 
-1. Releer la parte de las PRD (v1 secciones 7.4/7.5 y v2.1) sobre plantillas, generación de documentos y comunicaciones antes de escribir código (mismo método que al iniciar cada fase anterior).
-2. ABM de Documentos (activa A6 de verdad — hoy siempre da 0 porque no hay documentos cargables) y de Comunicaciones (ya hay reglas puras en `reglas/comunicaciones.ts` desde Fase 1, sin ruta que las use todavía).
-3. R17/R18 wiring (diferido de Fase 2, ver arriba): aplicar `aplicarCambioTipoActuacion` (RF-14) y las condiciones automáticas de NO_APLICA de R18 — decidir en el momento si entra en Fase 3 o se difiere más.
-4. Completar RF-12 con una pantalla de edición propia cuando exista la ficha de detalle de la actuación.
-5. Nota menor (no bloqueante, ver "Fase 2 — cierre" arriba): usar `esConflictoVersionError()` en `[id]/hitos/route.ts` si se toca esa ruta por otro motivo.
-6. Fase 4 (reportes y operación), después de Fase 3.
+1. RF-25/26/27: la parte de LÓGICA PURA es viable sin Google (armar los valores de las etiquetas `ETIQUETAS_PLANTILLA` desde la actuación/partes/inmueble — RF-26 bloque repetible de locadores, RF-27 `SECTOR_EPE` = nombre del sector no el representante) — se puede construir y probar esa parte; la llamada real a la API de Docs queda como paso manual/runbook, igual que las pruebas técnicas a-d.
+2. R17/R18 wiring (diferido de Fase 2): aplicar `aplicarCambioTipoActuacion` (RF-14) y las condiciones automáticas de NO_APLICA de R18.
+3. UI: pantallas propias para comunicaciones/documentos/actos dentro de la ficha de la actuación (hoy solo hay API — RF-16 "todos los bloques visibles sin cambiar de página" queda pendiente de una ficha de detalle real).
+4. Completar RF-12 con una pantalla de edición propia cuando exista esa ficha de detalle.
+5. Nota menor (no bloqueante): RF-23 menciona "Copiar"/"Abrir en Gmail" desde la UI — sin pantalla propia todavía, no hay dónde poner esos botones; la API ya deja `destinatarios`/`asunto`/`cuerpo` armados y listos para eso.
+6. Fase 4 (reportes y operación), después de cerrar Fase 3.
 
 ## Resultado de las últimas pruebas (2026-10-02)
 
@@ -85,11 +85,24 @@ Fase 3 — comunicaciones y documentos. No iniciada todavía.
 > clm-gaj-epe@0.1.0 test
 > vitest run --run
 
- Test Files  45 passed (45)
-      Tests  358 passed (358)
+ Test Files  47 passed (47)
+      Tests  377 passed (377)
 ```
 
-`npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK — genera, entre otras, las 4 páginas de ABM (`/alquileres/{inmuebles,expedientes,personas,actuaciones}`), `/alquileres` (dashboard), `/alquileres/alertas`, `/alquileres/calendario`, las 4 rutas de API raíz, `/api/alquileres/actuaciones/[id]`, `/api/alquileres/actuaciones/[id]/hitos`, más `/sin-acceso` y todas las rutas del CLM sin cambios.
+`npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK — agrega `/api/alquileres/areas`, `/api/alquileres/contactos-epe`, `/api/alquileres/actuaciones/[id]/comunicaciones`, `/api/alquileres/actuaciones/[id]/documentos`, `/api/alquileres/actuaciones/[id]/actos-admin`; todo lo anterior (ABM, dashboard, alertas, calendario, rutas del CLM) sin cambios.
+
+### 2026-10-02 — Fase 3 (parcial): Comunicaciones (RF-22/23/24), Documentos (RF-28), Actos administrativos (RF-29)
+
+- `reglas/comunicaciones.ts` (`armarDestinatarios`, nueva): RF-22 — sector SUCURSAL -> jefe de sucursal + designado; cualquier otro `tipoArea` -> gerente + responsable designado, filtrando contactos vigentes (RF-33: sin `vigenteHasta`, o con `vigenteHasta >= hoy`). 4 pruebas nuevas.
+- `src/app/api/alquileres/actuaciones/[id]/comunicaciones/route.ts` (nueva): `POST` prepara un BORRADOR de AVISO/REITERACION con destinatarios armados desde AREAS/CONTACTOS_EPE (rechaza con 400 si no hay contactos vigentes para el área — no inventa un destinatario), o registra directamente una CARTA_DOCUMENTO (sin paso de borrador, RF-24) y cumple H-04 en el mismo request. `PATCH` es "marcar como enviado" (M16/T23): valida fecha no futura, pasa la comunicación a ENVIADO y cumple el hito asociado (H-01 o H-03) — reutiliza el mismo mecanismo de R13/R14 que RF-20.
+- `src/lib/alquileres/servicios/cumplir-hito-servicio.ts` (nueva): se extrajo de `[id]/hitos/route.ts` la lógica de "cumplir un hito + recalcular R13/R14" para que la ruta de comunicaciones la reutilice sin duplicarla — `hitos/route.ts` quedó más corto y ahora también captura `ConflictoVersionError` (antes no lo hacía: un conflicto de versión ahí daba 500, corregido a 409 de paso).
+- `src/app/api/alquileres/actuaciones/[id]/documentos/route.ts` (nueva, RF-28): adjunta un documento con `urlDocumento` validada (`validarUrlDocumento`, ya existía desde Fase 1 sin usuario todavía) — solo acepta `drive.google.com`/`docs.google.com`. El dashboard y la pantalla de alertas ahora reciben los documentos reales (antes recibían `documentos: []` a mano) — A6 (formalizada sin escaneado) funciona de verdad por primera vez.
+- `src/app/api/alquileres/actuaciones/[id]/actos-admin/route.ts` (nueva, RF-29) + wiring en `[id]/route.ts`: se agregó `estadoActuacion` a los campos editables de la ruta de formalización, con una compuerta — un CONTRATO no puede pasar a FORMALIZADA editando el estado directamente (debe cumplir H-15), y un LEGITIMO_ABONO/ADENDA sí, pero corriendo R4' (`validarObligatoriosFormalizacion`) primero; para LEGITIMO_ABONO, R4' exige al menos un `ACTOS_ADMIN` cargado.
+- `src/app/api/alquileres/areas/route.ts` y `.../contactos-epe/route.ts` (nuevas, RF-33 parcial): alta mínima, necesaria para que RF-22 tenga de dónde sacar los destinatarios — sin ellas, no había forma de probar RF-22 con datos reales (ni siquiera ficticios) en este entorno. Áreas usa `MATRIZ_ADMINISTRACION` (solo ADMINISTRADOR), Contactos EPE usa `MATRIZ_CONTACTOS_EPE` (= `MATRIZ_GESTION`) — ver `docs/DECISIONES.md` para la justificación de cada matriz.
+- 3 matrices nuevas en `permisos.ts`: `MATRIZ_DOCUMENTOS`, `MATRIZ_COMUNICACIONES`, `MATRIZ_CONTACTOS_EPE` — todas transcriptas de la tabla de permisos de la sección 3 del PRD v1, no inventadas (ver DECISIONES.md).
+- Se extrajo `ahoraIso()` (antes duplicada idéntica en `repositorio-mock.ts` y `repositorio-sheets.ts`) a `fechas.ts`, para que la ruta de comunicaciones (que necesita "ahora con hora" para `envioDeclaradoEn`) no la triplique.
+- **Verificado en vivo** (`npm run dev`, sesión ADMINISTRADOR): creada un Área SUCURSAL + 2 contactos vigentes (JEFE_SUCURSAL/DESIGNADO) + un CONTRATO con esa área → `POST .../comunicaciones` con `tipoComunicacion: "AVISO"` arma el BORRADOR con exactamente esos dos mails como destinatarios → `PATCH` marcando como enviado cumple H-01 de verdad (estado pasa a AVISO_ENVIADO) → formalizado el contrato (R4') y adjuntado un documento ESCANEADO firmado de `drive.google.com` → el dashboard muestra "Formalizadas sin escaneado: 0" (antes de adjuntarlo daba 1, confirmado por la prueba automática correspondiente) → registrada una CARTA_DOCUMENTO (CD-9999) sobre la misma actuación, cumple H-04 en el mismo request, sin pasar por BORRADOR → creado un LEGITIMO_ABONO apuntando al contrato, rechazado al intentar FORMALIZADA sin acto administrativo, aceptado después de registrar uno. Sin errores en el log del servidor en ninguno de estos pasos.
+- `npm test`: 377/377 OK (364 antes de esta tanda → 377, +13 pruebas nuevas: 4 de `armarDestinatarios`, 5 de `comunicaciones/route.test.ts`, 2 de `documentos/route.test.ts`, 3 de `[id]/route.test.ts` RF-29, menos 1 de ajuste en la cobertura automática de rutas al refactorizar `hitos/route.ts`). `npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK.
 
 ### 2026-10-02 — Calendario (RF-40) y pantalla de Alertas (cierre funcional de Fase 2)
 

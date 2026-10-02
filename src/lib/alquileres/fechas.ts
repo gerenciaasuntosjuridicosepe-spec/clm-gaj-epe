@@ -79,6 +79,19 @@ export function hoy(): string {
   }).format(new Date());
 }
 
+/**
+ * "Ahora" en America/Argentina/Buenos_Aires, con hora, como ISO 8601 con el
+ * offset `-03:00` explícito (nunca `toISOString()`, que da UTC) — para
+ * campos de auditoría con hora (`creadoEn`/`modificadoEn`/`envioDeclaradoEn`),
+ * no para fechas de calendario (esas son siempre "yyyy-mm-dd", ver `hoy()`).
+ * Extraída acá desde `repositorio-mock.ts`/`repositorio-sheets.ts` (que
+ * tenían cada uno su propia copia idéntica) para no triplicarla al agregar
+ * un tercer lugar que necesita "ahora con hora" (RF-23, `envioDeclaradoEn`).
+ */
+export function ahoraIso(): string {
+  return new Date().toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" }).replace(" ", "T") + "-03:00";
+}
+
 /** Día de la semana (0 = domingo … 6 = sábado) de una fecha "yyyy-mm-dd", sin desfase horario. */
 export function diaDeSemana(fechaYMD: string): number {
   const c = parsearFecha(fechaYMD);

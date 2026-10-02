@@ -1,16 +1,12 @@
 import type { ColumnaDef } from "../esquema";
 import { filaAObjeto, objetoAFila } from "../esquema";
+import { ahoraIso } from "../fechas";
 import { neutralizarFormula } from "../reglas/validaciones";
 import { ConflictoVersionError, type OpcionesListar, type RepositorioTabla } from "./tipos-repositorio";
 import type { TransporteSheets } from "./transporte-sheets";
 
 /** Vigencia de la caché de lecturas (sección 4 del PRD v2.1: "caché en memoria de corta vigencia, máximo 60 s"). */
 const VIGENCIA_CACHE_MS = 60_000;
-
-/** Ahora, en ISO completo con zona America/Argentina/Buenos_Aires — para creadoEn/modificadoEn (marcas de tiempo, no fechas de calendario: Date sí es correcto acá). */
-function ahoraIso(): string {
-  return new Date().toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" }).replace(" ", "T") + "-03:00";
-}
 
 export interface OpcionesRepositorioSheets<T extends { version: number; activo: boolean }> {
   transporte: TransporteSheets;

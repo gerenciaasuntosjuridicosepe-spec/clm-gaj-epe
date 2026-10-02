@@ -1,8 +1,5 @@
 import { ConflictoVersionError, type OpcionesListar, type RepositorioTabla } from "./tipos-repositorio";
-
-function ahoraIso(): string {
-  return new Date().toLocaleString("sv-SE", { timeZone: "America/Argentina/Buenos_Aires" }).replace(" ", "T") + "-03:00";
-}
+import { ahoraIso } from "../fechas";
 
 export interface OpcionesRepositorioMock<T extends { version: number; activo: boolean }> {
   prefijo: string;

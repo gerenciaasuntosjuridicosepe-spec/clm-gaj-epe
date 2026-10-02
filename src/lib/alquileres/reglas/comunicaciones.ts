@@ -1,8 +1,7 @@
 /**
- * RF-23/RF-24 [CAMBIO en v2.1] + M16 — "Marcar como enviado": el gestor
- * declara que ya envió el mail/la reiteración desde su casilla. Exige fecha
- * no futura; recién con eso se guarda ENVIADO y se cumple H-01 (T23).
+ * RF-22/RF-23/RF-24 [CAMBIO en v2.1] + M16.
  */
+import type { Area, ContactoEpe } from "../tipos";
 
 interface ResultadoValidacion {
   valida: boolean;
@@ -18,4 +17,23 @@ export function validarMarcarComoEnviado(fechaEnvio: string | undefined, hoy: st
     return { valida: false, error: "La fecha de envío no puede ser futura." };
   }
   return { valida: true };
+}
+
+/**
+ * RF-22 — Destinatarios del aviso/reiteración, armados desde CONTACTOS_EPE
+ * vigentes: sector SUCURSAL -> jefe de sucursal y designado; cualquier otro
+ * tipo de área (GERENCIA y lo que se agregue a futuro al catálogo
+ * `tipo_area` — ver docs/PENDIENTES-HUMANOS.md) -> gerente y responsable
+ * designado. "Vigente" (RF-33): sin `vigenteHasta`, o con `vigenteHasta`
+ * en el futuro o igual a hoy.
+ */
+export function armarDestinatarios(
+  area: Pick<Area, "tipoArea">,
+  contactos: Pick<ContactoEpe, "cargo" | "mail" | "vigenteHasta">[],
+  hoy: string
+): string[] {
+  const cargosBuscados = area.tipoArea === "SUCURSAL" ? ["JEFE_SUCURSAL", "DESIGNADO"] : ["GERENTE", "RESPONSABLE_DESIGNADO"];
+  const vigente = (c: Pick<ContactoEpe, "vigenteHasta">) => !c.vigenteHasta || c.vigenteHasta >= hoy;
+
+  return contactos.filter((c) => cargosBuscados.includes(c.cargo) && vigente(c)).map((c) => c.mail);
 }

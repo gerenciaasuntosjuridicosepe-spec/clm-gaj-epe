@@ -9,7 +9,9 @@ import type {
   Actuacion,
   ActuacionHito,
   ActuacionParte,
+  Area,
   CfgHitoTipo,
+  ContactoEpe,
   Expediente,
   Hito,
   Inmueble,
@@ -138,6 +140,29 @@ export function crearActuacionHito(
     reprogramada: false,
     referencia: undefined,
     observaciones: undefined,
+    ...overrides,
+  };
+}
+
+export function crearArea(overrides: Partial<Area> & Pick<Area, "areaId">): Area {
+  return {
+    ...AUDITORIA_BASE,
+    nombre: "Área de Prueba",
+    tipoArea: "SUCURSAL",
+    areaPadreId: undefined,
+    ...overrides,
+  };
+}
+
+export function crearContactoEpe(overrides: Partial<ContactoEpe> & Pick<ContactoEpe, "contactoId" | "areaId">): ContactoEpe {
+  return {
+    ...AUDITORIA_BASE,
+    nombre: "Contacto de Prueba",
+    cargo: "JEFE_SUCURSAL",
+    mail: "contacto@epe.santafe.gov.ar",
+    telefono: undefined,
+    vigenteDesde: "2026-01-01",
+    vigenteHasta: undefined,
     ...overrides,
   };
 }

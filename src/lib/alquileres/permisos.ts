@@ -34,13 +34,47 @@ export const MATRIZ_HITOS: Matriz = {
   LECTOR: ["leer"],
 };
 
-/** Catálogos, áreas, contactos EPE, plantillas, feriados, parámetros: "L C E B | L | L | —". */
+/** Catálogos, áreas, plantillas, feriados, parámetros: "L C E B | L | L | —". */
 export const MATRIZ_ADMINISTRACION: Matriz = {
   ADMINISTRADOR: ["leer", "crear", "editar", "baja"],
   GESTOR: ["leer"],
   SUPERVISOR: ["leer"],
   LECTOR: [],
 };
+
+/** Actos administrativos y documentos (adjuntar enlace), sección 3 del PRD v1: "L C E B | L C E | L | L". */
+export const MATRIZ_DOCUMENTOS: Matriz = {
+  ADMINISTRADOR: ["leer", "crear", "editar", "baja"],
+  GESTOR: ["leer", "crear", "editar"],
+  SUPERVISOR: ["leer"],
+  LECTOR: ["leer"],
+};
+
+/**
+ * Comunicaciones (preparar borrador de aviso/reiteración, marcar como
+ * enviado, registrar carta documento). La sección 3 del PRD v1 no tiene una
+ * fila de "leer" propia para Comunicaciones (se ven dentro de la ficha de
+ * la actuación, visible para todos los roles) pero sí restringe "Enviar
+ * comunicaciones" y "Generar... desde plantilla" a ADMINISTRADOR/GESTOR
+ * (columna "C" únicamente, sin SUPERVISOR/LECTOR) — se modela como esta
+ * matriz, mismo criterio que MATRIZ_HITOS (no hay baja: una comunicación ya
+ * registrada no se borra, es parte del historial).
+ */
+export const MATRIZ_COMUNICACIONES: Matriz = {
+  ADMINISTRADOR: ["leer", "crear", "editar"],
+  GESTOR: ["leer", "crear", "editar"],
+  SUPERVISOR: ["leer"],
+  LECTOR: ["leer"],
+};
+
+/**
+ * Contactos EPE y localidades, sección 3 del PRD v1: "L C E B | L C E | L | L"
+ * — misma forma que MATRIZ_GESTION, se reutiliza esa en vez de duplicarla.
+ * Áreas no tiene una fila propia en esa tabla; se usa MATRIZ_ADMINISTRACION
+ * (más restrictiva, solo ADMINISTRADOR escribe) como default razonable
+ * para la estructura organizativa de EPE — ver docs/DECISIONES.md.
+ */
+export const MATRIZ_CONTACTOS_EPE: Matriz = MATRIZ_GESTION;
 
 export function puedeAlquileres(rol: RolAlquileresId | undefined, accion: AccionAlquileres, matriz: Matriz): boolean {
   if (!rol) return false;

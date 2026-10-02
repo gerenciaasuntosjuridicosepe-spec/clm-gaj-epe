@@ -73,7 +73,16 @@ Se completa incrementalmente, fase por fase. Lo que no tiene fila todavía es po
 
 ## Fase 3 — comunicaciones y documentos
 
-(Pendiente.)
+| ID | Qué exige | Archivo de implementación | Archivo de prueba | Estado |
+| --- | --- | --- | --- | --- |
+| RF-22/RF-23 [CAMBIO v2.1] | Preparar un borrador de AVISO con destinatarios armados desde CONTACTOS_EPE vigentes del área (sector SUCURSAL -> jefe+designado, resto -> gerente+responsable); "Marcar como enviado" cumple H-01 recién ahí (M16) | `reglas/comunicaciones.ts` (`armarDestinatarios`), `src/app/api/alquileres/actuaciones/[id]/comunicaciones/route.ts` (POST/PATCH), `src/lib/alquileres/servicios/cumplir-hito-servicio.ts` | `reglas/comunicaciones.test.ts` (4 pruebas nuevas); `.../comunicaciones/route.test.ts` (5 pruebas); verificado en vivo de punta a punta (ver `docs/PROGRESO.md`) | Hecho (sin UI de edición del borrador todavía, solo API — el flujo "copiar/abrir en Gmail" de RF-23 es de la pantalla, pendiente) |
+| RF-24 [CAMBIO v2.1] | Reiteración (H-03) igual que AVISO; carta documento (H-04) se registra directo con el número, sin pasar por BORRADOR/ENVIADO | mismos archivos que RF-22/23 | mismas pruebas (casos CARTA_DOCUMENTO) | Hecho |
+| RF-28 | Adjuntar enlace de documento (ej. escaneado firmado, que apaga A6) — solo `drive.google.com`/`docs.google.com` | `src/app/api/alquileres/actuaciones/[id]/documentos/route.ts`, `reglas/validaciones.ts` (`validarUrlDocumento`, ya existía) | `.../documentos/route.test.ts` (2 pruebas); verificado en vivo — A6 pasa de 1 a 0 al adjuntar el escaneado firmado | Hecho |
+| RF-29 | Registrar actos administrativos; un LEGITIMO_ABONO no pasa a FORMALIZADA sin al menos uno (R4') | `src/app/api/alquileres/actuaciones/[id]/actos-admin/route.ts`, `src/app/api/alquileres/actuaciones/[id]/route.ts` (gate de `estadoActuacion: "FORMALIZADA"` para ADENDA/LEGITIMO_ABONO) | `.../[id]/route.test.ts` (3 pruebas nuevas); verificado en vivo (rechaza sin acto, acepta con acto) | Hecho |
+| RF-33 (parcial) | Áreas y Contactos EPE — alta mínima para destrabar RF-22 | `src/app/api/alquileres/areas/route.ts`, `src/app/api/alquileres/contactos-epe/route.ts` | Sin prueba propia dedicada (ejercitadas indirectamente por `comunicaciones/route.test.ts`); verificado en vivo | Parcial — sin edición, ni el "cerrar vigencia del anterior" automático de RF-33 |
+| RF-25/26/27 | Generar contrato/adenda/mail desde plantilla de Google Docs (reemplazo de etiquetas, bloque repetible de locadores, SECTOR_EPE) | — (no iniciado) | — | **Pendiente** — requiere la API de Google Docs real (fuera de alcance de este desarrollo autónomo: "nunca hablar con Google real"); la parte de lógica pura (armar los valores de las etiquetas) es viable sin Google y queda como próxima tarea |
+
+Nota sobre el hallazgo de esta fase: durante la tarea se encontró y corrigió `[id]/hitos/route.ts` no capturaba `ConflictoVersionError` (daba 500 en vez de 409) — corregido reutilizando `esConflictoVersionError()` (ver `docs/DECISIONES.md`, 2026-10-02, "identidad de clase entre layers"). También se extrajo `cumplirHitoYRecalcularEstado` a un servicio compartido (`servicios/cumplir-hito-servicio.ts`) para que la ruta de hitos y la de comunicaciones no dupliquen la lógica de R13/R14.
 
 ## Fase 4 — reportes y operación
 

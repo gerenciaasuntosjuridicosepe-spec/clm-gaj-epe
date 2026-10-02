@@ -2,6 +2,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { AlquileresAlertasClient } from "@/components/pages/alquileres-alertas-client";
 import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioActuacionHitos } from "@/lib/alquileres/datos/actuacion-hitos";
+import { getRepositorioDocumentos } from "@/lib/alquileres/datos/documentos";
 import { calcularDashboard } from "@/lib/alquileres/reglas/dashboard";
 import { CFG_HITOS_TIPO_SEED } from "@/lib/alquileres/catalogos/hitos-seed";
 import { numeroParametro, PARAMETROS_SEED } from "@/lib/alquileres/catalogos/parametros-seed";
@@ -16,15 +17,16 @@ export const dynamic = "force-dynamic";
  * en vez de recalcular nada acá.
  */
 export default async function AlquileresAlertasPage() {
-  const [actuaciones, hitos] = await Promise.all([
+  const [actuaciones, hitos, documentos] = await Promise.all([
     getRepositorioActuaciones().listar(),
     getRepositorioActuacionHitos().listar(),
+    getRepositorioDocumentos().listar(),
   ]);
 
   const { colaDeTrabajo } = calcularDashboard({
     actuaciones,
     hitos,
-    documentos: [], // sin ABM de Documentos todavía (Fase 3) — A6 da 0 hasta entonces, correcto.
+    documentos,
     cfgHitosTipo: CFG_HITOS_TIPO_SEED,
     hoy: hoy(),
     alicuotaIva: numeroParametro(PARAMETROS_SEED, "alicuota_iva", 21),

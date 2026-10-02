@@ -121,3 +121,31 @@ Esto NO es un secreto real (no protege datos reales, todo el entorno usa datos m
 3. **Elegida:** `src/components/domain/calendario-mes-alquileres.tsx`, un componente propio con el mismo diseño visual (misma grilla, mismos estilos del design system) pero tipado a `EventoCalendarioAlquileres` (propio) y sin ningún link roto (el panel de detalle del día muestra el `actuacionId` como texto, no como enlace — consistente con el resto del módulo en esta fase, que tampoco tiene todavía una ficha de detalle de actuación navegable). Para no duplicar la matemática de calendario (que SÍ es genérica, no depende de `Contrato`), se importan de `src/lib/calendario.ts` — sin modificarlo — las cuatro funciones puras de grilla: `construirGrillaMes`, `aFechaISO`, `DIAS_SEMANA`, `MESES`. Esto es, en los hechos, "el componente visual del CLM con un adaptador" que permite el PRD: se adapta la parte reutilizable (la grilla) y se reconstruye la parte que no lo es (el tipo de evento y su render).
 
 **Verificado:** en vivo contra `npm run dev`, con una actuación formalizada con `fecha_fin` a futuro y varios hitos con `fecha_prevista` vencida — el calendario muestra ambos tipos de evento en sus fechas correctas, con el semáforo correcto para el vencimiento (ver `docs/PROGRESO.md`).
+
+---
+
+## 2026-10-02 — Fase 3: matrices de permisos de Comunicaciones/Documentos/Áreas, armadas desde la tabla de la sección 3 del PRD v1
+
+**Qué:** RF-22/23/24 (comunicaciones) y RF-28/29 (documentos, actos administrativos) necesitaban su propia matriz de permisos (`permisos.ts`), que todavía no existía para estas tablas.
+
+**Fuente:** la matriz de permisos de la sección 3 del PRD v1 (tabla en `docs/prd-app-seguimiento-alquileres-v1.md`, línea ~85) tiene filas explícitas para "Actos administrativos y documentos (adjuntar enlace)" (`L C E B | L C E | L | L`) y para "Enviar comunicaciones"/"Generar... desde plantilla" (`C` únicamente para ADMINISTRADOR/GESTOR). No hay fila propia para "Áreas".
+
+**Decisiones tomadas:**
+1. `MATRIZ_DOCUMENTOS` (actos administrativos y documentos): se transcribió tal cual la fila de la tabla — ADMINISTRADOR con baja, GESTOR sin baja, SUPERVISOR y LECTOR solo lectura. Distinta de `MATRIZ_GESTION` porque ahí SUPERVISOR tiene además "baja" y acá no.
+2. `MATRIZ_COMUNICACIONES`: la tabla no tiene una fila de "leer" propia para comunicaciones (se ven dentro de la ficha de la actuación, visible para todos los roles) pero sí restringe expresamente "Enviar comunicaciones" a ADMINISTRADOR/GESTOR. Se modela como la misma forma que `MATRIZ_HITOS` (leer para todos, crear/editar solo ADMINISTRADOR/GESTOR, sin baja — una comunicación ya registrada es parte del historial, no se borra).
+3. `MATRIZ_CONTACTOS_EPE`: la fila "Contactos EPE y localidades" de la tabla es idéntica en forma a `MATRIZ_GESTION` — se reutiliza esa constante en vez de declarar una nueva idéntica (evita un duplicado que podría divergir sin querer en un cambio futuro).
+4. **Áreas, sin fila en la tabla:** se usó `MATRIZ_ADMINISTRACION` (solo ADMINISTRADOR escribe) como default razonable, por ser estructura organizativa de EPE (más cercana en espíritu a "Catálogos, plantillas, feriados, parámetros" que a un simple directorio de contactos). Si en una revisión posterior alguien aporta una fila explícita para Áreas que diga otra cosa, corregir acá.
+
+**Verificado:** las 5 rutas nuevas (`areas`, `contactos-epe`, `[id]/comunicaciones`, `[id]/documentos`, `[id]/actos-admin`) pasan solas a formar parte de la cobertura automática de RF-42 (`rutas-guardia-sesion.test.ts`, sin tocarlo); permisos ejercitados en vivo contra `npm run dev` (ver `docs/PROGRESO.md`): GESTOR rechazado al crear un Área (403), ADMINISTRADOR aceptado.
+
+---
+
+## 2026-10-02 — RF-29: LEGITIMO_ABONO y ADENDA pasan a FORMALIZADA por edición directa del estado, no por hitos
+
+**Qué:** R14 (`calcularEstadoDerivado`) solo calcula el estado de un CONTRATO a partir de sus hitos; su propio comentario dice explícitamente que ADENDA y LEGITIMO_ABONO "usan EN_TRAMITE, FORMALIZADA, CERRADA y ANULADA cargados a mano (no pasan por esta función)" — pero hasta esta tarea, `[id]/route.ts` (RF-12/RF-29) no tenía ningún campo `estadoActuacion` editable, así que no había ninguna forma real de llevar un LEGITIMO_ABONO o una ADENDA a FORMALIZADA.
+
+**Decisión:** se agregó `estadoActuacion` a los campos editables de `[id]/route.ts`, con una compuerta: si el cuerpo pide `estadoActuacion: "FORMALIZADA"` (a) un CONTRATO lo rechaza (400, con el mensage de que debe cumplir H-15), (b) para ADENDA/LEGITIMO_ABONO, se corre `validarObligatoriosFormalizacion` (R4') sobre la actuación con los cambios ya aplicados, y para LEGITIMO_ABONO específicamente se consulta `ACTOS_ADMIN` (RF-29) para el flag `tieneActoAdministrativo` que R4' exige. Sin pasar esa validación, 400 con el detalle de qué falta — igual criterio que el resto del módulo (nunca un mensaje genérico).
+
+**Alternativa considerada:** una ruta separada `PATCH .../estado` solo para esto — descartada por ahora: el campo cabe naturalmente junto a los demás campos de formalización que ya edita esta ruta, y separar hubiera significado dos round-trips de red para un flujo que conceptualmente es uno solo ("completar los datos y formalizar").
+
+**Verificado:** `route.test.ts` (3 casos: CONTRATO rechazado, LEGITIMO_ABONO sin acto rechazado, LEGITIMO_ABONO con acto aceptado) y en vivo contra `npm run dev` (ver `docs/PROGRESO.md`).

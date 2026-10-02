@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { esRespuestaError, requerirAccionAlquileres } from "@/lib/alquileres/auth-guard";
 import { MATRIZ_GESTION } from "@/lib/alquileres/permisos";
 import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
+import { getRepositorioActosAdmin } from "@/lib/alquileres/datos/actos-admin";
 import { fechaFinPorDefecto, validarFechaFinManual } from "@/lib/alquileres/reglas/r5-fecha-fin";
+import { validarObligatoriosFormalizacion } from "@/lib/alquileres/reglas/r4-obligatorios-formalizada";
 import { esConflictoVersionError } from "@/lib/alquileres/repositorio/tipos-repositorio";
 import type { Actuacion } from "@/lib/alquileres/tipos";
 
@@ -31,6 +33,7 @@ type CuerpoFormalizacion = Partial<
     | "reglaActualizacion"
     | "firmanteEpeContactoId"
     | "observaciones"
+    | "estadoActuacion"
   >
 > & { version?: number; motivoCambioFecha?: string };
 
@@ -72,6 +75,33 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     } else if (body.fechaInicio || body.plazoMeses) {
       // Se informó inicio y/o plazo pero no fecha_fin: se propone el valor por defecto (R5).
       cambios.fechaFin = fechaFinPorDefecto(fechaInicioFinal, plazoMesesFinal);
+    }
+  }
+
+  // RF-29/R4' — ADENDA y LEGITIMO_ABONO no tienen hitos (R14): pasan a FORMALIZADA por edición directa del
+  // estado, no por cumplir H-15 (eso es solo para CONTRATO, ver `[id]/hitos/route.ts`). Un LEGITIMO_ABONO
+  // además necesita al menos un acto administrativo (RF-29) — sin eso, R4' lo rechaza.
+  if (body.estadoActuacion === "FORMALIZADA") {
+    if (actuacion.tipoActuacion === "CONTRATO") {
+      return NextResponse.json(
+        { error: "Un CONTRATO pasa a FORMALIZADA al cumplir el hito H-15, no editando el estado directamente." },
+        { status: 400 }
+      );
+    }
+
+    const actuacionConCambios: Actuacion = { ...actuacion, ...cambios };
+    let tieneActoAdministrativo = false;
+    if (actuacion.tipoActuacion === "LEGITIMO_ABONO") {
+      const actos = await getRepositorioActosAdmin().listar();
+      tieneActoAdministrativo = actos.some((a) => a.actuacionId === id);
+    }
+
+    const validacion = validarObligatoriosFormalizacion(actuacionConCambios, tieneActoAdministrativo);
+    if (!validacion.valida) {
+      return NextResponse.json(
+        { error: `No se puede formalizar — falta: ${validacion.camposFaltantes.join(", ")}.` },
+        { status: 400 }
+      );
     }
   }
 

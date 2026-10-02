@@ -104,3 +104,108 @@ describe("PATCH /api/alquileres/actuaciones/[id] — RF-12 (formalización, parc
     expect(actual.canonInicial).toBe(100_000); // el cambio exitoso no se perdió
   });
 });
+
+describe("PATCH /api/alquileres/actuaciones/[id] — RF-29 (acto administrativo exige LEGITIMO_ABONO para FORMALIZADA)", () => {
+  let actuacionId: string;
+  let version: number;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    const { POST: crearInmueble } = await import("@/app/api/alquileres/inmuebles/route");
+    const resInmueble = await crearInmueble(
+      new NextRequest("http://localhost/api/alquileres/inmuebles", {
+        method: "POST",
+        body: JSON.stringify({ domicilio: "Calle RF-29", localidadId: "LOC-TEST" }),
+      })
+    );
+    const inmueble = await resInmueble.json();
+
+    const { POST: crearActuacion } = await import("@/app/api/alquileres/actuaciones/route");
+    // LEGITIMO_ABONO exige actuacion_anterior_id apuntando a un CONTRATO del mismo inmueble (R3').
+    const resContratoPredecesor = await crearActuacion(
+      new NextRequest("http://localhost/api/alquileres/actuaciones", {
+        method: "POST",
+        body: JSON.stringify({ tipoActuacion: "CONTRATO", inmuebleId: inmueble.inmuebleId, sectorInteresadoAreaId: "AR-06" }),
+      })
+    );
+    const contratoPredecesor = await resContratoPredecesor.json();
+
+    const resActuacion = await crearActuacion(
+      new NextRequest("http://localhost/api/alquileres/actuaciones", {
+        method: "POST",
+        body: JSON.stringify({
+          tipoActuacion: "LEGITIMO_ABONO",
+          inmuebleId: inmueble.inmuebleId,
+          sectorInteresadoAreaId: "AR-06",
+          actuacionAnteriorId: contratoPredecesor.actuacionId,
+        }),
+      })
+    );
+    const actuacion = await resActuacion.json();
+    actuacionId = actuacion.actuacionId;
+    version = actuacion.version;
+  });
+
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  const camposComunes = {
+    fechaInicio: "2026-01-01",
+    fechaFin: "2026-06-30",
+    canonInicial: 50_000,
+    condicionIvaCanon: "SIN_IVA",
+  };
+
+  it("un CONTRATO no puede pasar a FORMALIZADA editando el estado directamente (debe cumplir H-15)", async () => {
+    const { POST: crearInmueble } = await import("@/app/api/alquileres/inmuebles/route");
+    const resInmueble = await crearInmueble(
+      new NextRequest("http://localhost/api/alquileres/inmuebles", { method: "POST", body: JSON.stringify({ domicilio: "X", localidadId: "LOC-TEST" }) })
+    );
+    const inmueble = await resInmueble.json();
+    const { POST: crearActuacion } = await import("@/app/api/alquileres/actuaciones/route");
+    const resContrato = await crearActuacion(
+      new NextRequest("http://localhost/api/alquileres/actuaciones", {
+        method: "POST",
+        body: JSON.stringify({ tipoActuacion: "CONTRATO", inmuebleId: inmueble.inmuebleId, sectorInteresadoAreaId: "AR-06" }),
+      })
+    );
+    const contrato = await resContrato.json();
+
+    const { PATCH } = await import("./route");
+    const res = await PATCH(patchActuacion({ version: contrato.version, estadoActuacion: "FORMALIZADA" }), {
+      params: Promise.resolve({ id: contrato.actuacionId }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("sin acto administrativo, rechaza pasar un LEGITIMO_ABONO a FORMALIZADA aunque el resto de R4' esté completo", async () => {
+    const { PATCH } = await import("./route");
+    const res = await PATCH(patchActuacion({ version, ...camposComunes, estadoActuacion: "FORMALIZADA" }), {
+      params: Promise.resolve({ id: actuacionId }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toMatch(/acto administrativo/);
+  });
+
+  it("con al menos un acto administrativo registrado (RF-29), permite pasar el LEGITIMO_ABONO a FORMALIZADA", async () => {
+    const { POST: crearActo } = await import("@/app/api/alquileres/actuaciones/[id]/actos-admin/route");
+    const resActo = await crearActo(
+      new NextRequest("http://localhost/api/alquileres/actuaciones/x/actos-admin", {
+        method: "POST",
+        body: JSON.stringify({ tipoActo: "RESOLUCION", numeroActo: "123/2026", fechaActo: "2026-01-05", organoEmisor: "Directorio" }),
+      }),
+      { params: Promise.resolve({ id: actuacionId }) }
+    );
+    expect(resActo.status).toBe(201);
+
+    const { PATCH } = await import("./route");
+    const res = await PATCH(patchActuacion({ version, ...camposComunes, estadoActuacion: "FORMALIZADA" }), {
+      params: Promise.resolve({ id: actuacionId }),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.estadoActuacion).toBe("FORMALIZADA");
+  });
+});
