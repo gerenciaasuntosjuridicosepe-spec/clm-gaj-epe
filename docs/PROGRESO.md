@@ -14,8 +14,8 @@ Documentos de referencia: `docs/DECISIONES.md` (por qué se decidió cada cosa),
 | --- | --- |
 | Paso 0 (verificación de documentos) | **OK** — 2026-09-30, ver DECISIONES.md |
 | Fase 0 (correcciones F0-1 a F0-7 + runbooks a-d) | **Cerrada** — 2026-09-30, ver detalle abajo |
-| Fase 1 (cimientos del módulo) | En curso |
-| Fase 2 (hitos, alertas, dashboard) | No iniciada |
+| Fase 1 (cimientos del módulo) | **Cerrada** — 2026-10-01, ver "Fase 1 — cierre" más abajo |
+| Fase 2 (hitos, alertas, dashboard) | En curso |
 | Fase 3 (comunicaciones y documentos) | No iniciada |
 | Fase 4 (reportes y operación) | No iniciada |
 | Fase 5/6 (piloto, migración) | Fuera de alcance de este desarrollo — requieren dictamen GAJ y datos reales (ver PENDIENTES-HUMANOS.md) |
@@ -36,43 +36,47 @@ Las 7 correcciones (F0-1 a F0-7) están hechas, cada una con su propio commit y 
 
 Pruebas técnicas a-d: runbooks en `docs/runbooks/prueba-a-login.md`, `prueba-b-carga.md`, `prueba-c-plantilla.md`, `prueba-d-concurrencia.md`. También documentadas en `docs/PENDIENTES-HUMANOS.md`, punto 5.
 
-## Tarea actual
+## Fase 1 — cierre
 
-Fase 1 — cimientos del módulo de Alquileres. Hecho hasta ahora (ver bitácora para el detalle de cada commit):
+Cerrada el 2026-10-01. Se construyeron los cimientos completos del módulo (ver la bitácora de abajo para el detalle de cada commit, y `docs/TRAZABILIDAD.md` para el mapeo requisito → código → prueba):
+
 - Modelo de datos (`tipos.ts`), catálogos semilla, `fechas.ts` propio.
-- Las 20 reglas de negocio puras que se pueden implementar sin el libro original (R2, R3'/R3a, R4', R5, R8, R9, R13-R20 + validaciones + alertas A1-A8 + campos calculados C1/C4/C6 + legítimo abono + comunicaciones).
+- Las 20 reglas de negocio puras implementables sin el libro original (R2, R3'/R3a, R4', R5, R8, R9, R13-R20 + validaciones + alertas A1-A8 + campos calculados C1/C4/C6 + legítimo abono + comunicaciones) — 312 pruebas automáticas en total en el repositorio al cierre de esta fase.
 - Esquema de la planilla de Alquileres + script de aprovisionamiento (T21).
-- Roles por módulo (D3/D12) con guardia de acceso (proxy + `/sin-acceso`), login de desarrollo (dev-bypass) y verificación en vivo de T19.
+- Roles por módulo (D3/D12) con guardia de acceso (proxy + `/sin-acceso`), login de desarrollo (dev-bypass) y verificación en vivo de T19 (en ambas direcciones).
 - Repositorio genérico sobre Sheets (R1, T20, T26, prueba técnica d) + mock en memoria, con fake/doble completo de la API de Sheets para probar sin Google real.
 - Escritura restringida de Usuarios desde Alquileres (T27).
-- Matriz de permisos del módulo (`permisos.ts`) y guardia de rutas de API propia (`alquileres/auth-guard.ts`, RF-42).
-- Primer ABM real de punta a punta: Inmuebles (RF-05), con página + ruta de API + componente cliente, probado en vivo contra `npm run dev` (alta vía API, visible en la página de listado, bloqueado para quien no tiene rol de Alquileres).
-
-Falta para cerrar Fase 1: replicar el patrón de Inmuebles para Expedientes, Personas (con enmascarado LECTOR) y Actuaciones; ítem de menú propio (RF-41) filtrado por `rolAlquileres`; cerrar la fase con revisión adversarial completa y `docs/TRAZABILIDAD.md` al día.
+- Matriz de permisos del módulo (`permisos.ts`) y guardia de rutas de API propia (`alquileres/auth-guard.ts`, RF-42 — cobertura automática para cualquier ruta nueva).
+- ABM completo de las 4 tablas raíz (RF-05, RF-07/08, RF-09, RF-11): Inmuebles, Expedientes, Personas (con bloqueo total de LECTOR) y Actuaciones (alta rápida; RF-12 formalización guiada queda para Fase 2/3), verificado en vivo de punta a punta encadenando los 4 altas con referencias cruzadas correctas.
+- Menú propio "Alquileres" en el sidebar (RF-41), filtrado por rol, separado del menú del CLM.
+- Revisión adversarial de cierre (ver sección "Hallazgos de la revisión adversarial" más abajo): encontró y corrigió un bug real (R3' no se validaba siempre en Actuaciones) y documentó limitaciones aceptadas (ventanas de carrera en altas, caso LECTOR del menú no verificado en vivo).
 
 **Nota sobre continuidad:** esta fase se desarrolló a lo largo de varias sesiones interrumpidas por el límite de uso compartido de la cuenta (no un error del desarrollo — se retoma automáticamente). Cada retoma empezó re-verificando `git log`/`git status`/`git diff`/`npm test`/`npx tsc --noEmit` antes de seguir, sin asumir que el estado dejado por la sesión anterior (o por un subagente) ya estaba probado.
 
+## Tarea actual
+
+Fase 2 — hitos, alertas y dashboard (PRD v2.1 sección 9: "como el v1, con `fechas.ts` del módulo, calendario (RF-40) y alertas propias"; condición de salida: "los ejemplos numéricos T2-T10 dan el resultado esperado" — ya satisfecho por las reglas puras de Fase 1, falta la UI/orquestación que los conecta a datos reales).
+
 ## Próximas tareas (orden previsto)
 
-1. Expedientes (RF-07/RF-08): mismo patrón que Inmuebles, con la validación de R2 (vínculo al mismo inmueble) y los dos formatos de `nro_expediente` (T11, ya implementado en `validaciones.ts`).
-2. Personas (RF-09): mismo patrón, con `buscarPersonaDuplicada` (R9) antes de crear, y enmascarado de campos personales para LECTOR (`enmascararSiLector`, ya implementado en `permisos.ts` — falta aplicarlo en la ruta de lectura).
-3. Actuaciones (RF-11/RF-12): el ABM más complejo — alta rápida (tipo, inmueble, sector, estado), validación R2/R3'/R4' según corresponda, generación de hitos al crear un CONTRATO (RF-19, usa R13 + la semilla de CFG_HITOS_TIPO).
-4. Ítem de menú "Alquileres" (RF-41) en el sidebar, filtrado por `rolAlquileres` de la sesión (hoy `Sidebar` es estático, sin filtrar por rol en absoluto — ni para el CLM; ver hallazgo en "revisión adversarial").
-5. Cerrar Fase 1: correr lint/build/test completos, recorrido manual adicional en `npm run dev`, completar `docs/TRAZABILIDAD.md` con las filas de Fase 1 que falten, revisión adversarial formal antes de pasar a Fase 2.
+1. RF-19: generación automática de hitos al crear un CONTRATO (una fila de `ACTUACION_HITOS` por cada fila de `CFG_HITOS_TIPO` del tipo correspondiente, con `fecha_prevista` según R13) — falta el repositorio de `ACTUACION_HITOS`/`HITOS`/`CFG_HITOS_TIPO` (wiring análogo a `datos/inmuebles.ts`) y el servicio que lo orquesta.
+2. RF-20/RF-21: cumplir un hito (fecha hoy o anterior, recalcula R14/R13) y reprogramar/marcar NO_APLICA.
+3. Dashboard (sección 8 del PRD v1): tarjetas de indicadores, cola de trabajo con las alertas A1-A8 ya implementadas como reglas puras, gráficos (Recharts, ya instalado).
+4. Calendario propio del módulo (RF-40): vencimientos efectivos e hitos previstos.
+5. Alertas (RF del v1 sección 7.1 adaptado): pantalla propia, reutilizando las funciones de `reglas/alertas.ts`.
+6. Cerrar Fase 2: verificar que T2-T10 (ya reproducidos en las pruebas de reglas) se vean también reflejados correctamente end-to-end en el dashboard con datos de prueba ficticios, revisión adversarial, `docs/TRAZABILIDAD.md` al día.
 
-## Resultado de las últimas pruebas (2026-10-01)
+## Resultado de las últimas pruebas (2026-10-01, cierre de Fase 1)
 
 ```
 > clm-gaj-epe@0.1.0 test
 > vitest run
 
- Test Files  37 passed (37)
-      Tests  306 passed (306)
+ Test Files  38 passed (38)
+      Tests  312 passed (312)
 ```
 
-`npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK — genera (entre otras) `/alquileres/inmuebles` y `/api/alquileres/inmuebles`.
-
-`npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK, genera las mismas rutas que antes más `/sin-acceso`.
+`npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK — genera, entre otras, las 4 páginas (`/alquileres/{inmuebles,expedientes,personas,actuaciones}`) y las 4 rutas de API (`/api/alquileres/{inmuebles,expedientes,personas,actuaciones}`) más `/sin-acceso` y todas las rutas del CLM sin cambios.
 
 ## Resultado de las últimas pruebas (Fase 0, cierre)
 
@@ -140,7 +144,16 @@ Route (app)
 
 ## Hallazgos de la revisión adversarial (sección 6.3 del encargo)
 
-(Se completa al cerrar cada fase. Fase 0 es correctiva por naturaleza — su propia revisión adversarial fue encontrar los 7 hallazgos F0-1 a F0-7, ya corregidos y probados arriba. Un hallazgo adicional notado de paso y no corregido en Fase 0 por estar fuera de su alcance: `src/lib/data/provider.ts` mantiene un `instancia` de provider en una variable module-level cacheada entre requests — en un entorno serverless esto vive por instancia de proceso, no es un problema de seguridad pero sí algo a tener en cuenta para Alquileres: el repositorio de Alquileres NO debe compartir ese singleton con el de Contratos, cada uno con el suyo — ver T26.)
+**Fase 0** (correctiva por naturaleza): su propia revisión adversarial fue encontrar los 7 hallazgos F0-1 a F0-7, ya corregidos y probados. Hallazgo adicional notado de paso, no corregido por estar fuera de su alcance: `src/lib/data/provider.ts` mantiene un `instancia` de provider en una variable module-level cacheada entre requests — en un entorno serverless/Turbopack esto puede dar instancias distintas por "layer" (ver el hallazgo de Fase 1 de abajo, que sí se corrigió, pero solo para Alquileres).
+
+**Fase 1** (revisión formal al cierre, 2026-10-01):
+
+- **Permisos** — revisado rol por rol contra las 4 matrices (`permisos.ts`): confirmado que cada ruta de API vuelve a chequear el permiso en el servidor (no solo oculta botones en el cliente) y que las páginas de Server Component que llaman al repositorio DIRECTO (sin pasar por la ruta de API) también chequean el permiso antes de leer — crítico para Personas, donde LECTOR no tiene ni "leer" (a diferencia de Inmuebles/Expedientes/Actuaciones, donde sí). Sin hallazgos de un rol viendo/editando algo que no debería, más allá de lo ya corregido.
+- **Datos personales** — `enmascararSiLector` existe pero hoy es código "muerto" en la práctica: LECTOR nunca llega a ese punto en la ruta de Personas porque `MATRIZ_PERSONAS` ya lo bloquea antes con 403 (esto es correcto, no un bug: la función queda como segunda capa de defensa documentada, para si en el futuro se expone una vista agregada donde LECTOR sí tenga "leer"). Inmuebles/Expedientes/Actuaciones no contienen datos personales de locadores directamente (eso vive en PERSONAS/ACTUACION_PARTES) — sin hallazgos.
+- **Condiciones de carrera en escrituras concurrentes** — el mecanismo de ID (secuencia) y el control de versión optimista (R1/T20) están probados contra concurrencia real (`Promise.all` de 20). Hallazgo real encontrado y **corregido**: `POST /api/alquileres/actuaciones` solo validaba R3' cuando el cliente mandaba `actuacion_anterior_id`, dejando pasar una ADENDA/LEGITIMO_ABONO sin ese campo obligatorio — commit `f0d4d06`. Hallazgo encontrado y **documentado, no corregido** (riesgo aceptado a la escala de GAJ, igual criterio que ya usa el PRD v2.1 para el control de versión): las validaciones de unicidad en altas (partida de inmueble, nro_expediente, DNI/CUIT de persona) hacen "leer para chequear, después crear" sin ningún lock — dos altas casi simultáneas con el mismo valor podrían pasar ambas la validación. Comentarios `// TODO` en los 3 archivos de ruta correspondientes.
+- **Manejo de fechas** — no se usan fechas de calendario todavía en el ABM construido en Fase 1 (Actuaciones.fecha_inicio/fecha_fin se cargan al formalizar, RF-12, que es Fase 2/3); `fechas.ts` ya tiene su batería de pruebas (T2-T5, T22) desde que se escribió. Sin hallazgos nuevos.
+- **Casos borde de reglas de negocio** — cubiertos extensamente por las 200+ pruebas de `reglas/*.test.ts` escritas con TDD antes del código. Sin hallazgos nuevos más allá del de R3' ya corregido arriba.
+- **Pendiente menor, sin corregir:** el ítem "Personas" del menú de Alquileres se oculta para LECTOR por código (`filtro: (rol) => rol !== "LECTOR"`, trivial) pero no se verificó en vivo contra `npm run dev` — no hay todavía un usuario mock con rol LECTOR de Alquileres (solo ADMINISTRADOR y GESTOR). No es un riesgo de seguridad (la ruta de API ya bloquea a LECTOR independientemente de lo que muestre el menú) — es solo verificación de UI pendiente. Si se agrega un usuario mock LECTOR en una fase siguiente, conviene aprovechar y verificarlo en vivo.
 
 ---
 
