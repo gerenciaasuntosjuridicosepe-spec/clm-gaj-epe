@@ -20,6 +20,7 @@ import {
   FileSignature,
   UserRound,
   LayoutDashboard,
+  BarChart3,
 } from "lucide-react";
 import { NAV_GROUPS, NavItem } from "@/lib/navegacion";
 import { NAV_GROUPS_ALQUILERES, NavItemAlquileres } from "@/lib/alquileres/navegacion";
@@ -47,6 +48,7 @@ const ICONS_ALQUILERES: Record<NavItemAlquileres["icon"], React.ComponentType<{ 
   personas: UserRound,
   calendario: CalendarDays,
   alertas: BellRing,
+  reportes: BarChart3,
 };
 
 function EnlaceNav({

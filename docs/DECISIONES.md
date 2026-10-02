@@ -165,3 +165,58 @@ Se construyó y probó `reglas/datos-plantilla.ts` (armado de los 10 valores + r
 **Tampoco se inventó la redacción legal** de `{{CONDICION_IVA}}`/`{{REGLA_ACTUALIZACION}}` (RF-27 pide "la redacción", no el código `MAS_IVA`/`SIN_IVA`) — es contenido contractual/legal real, exactamente lo que el encargo pide no fabricar. Se deja pasar el valor crudo como placeholder explícito y se anota en `docs/PENDIENTES-HUMANOS.md` (punto 10).
 
 **Verificado:** `reglas/datos-plantilla.test.ts` (6 pruebas, incluida la verificación explícita de que `SECTOR_EPE` nunca coincide con el nombre del firmante — hallazgo 14). `npm test`: 383/383. `npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK (sin rutas nuevas, es solo lógica de librería).
+
+---
+
+## 2026-10-02 — Fase 4: no se instala `xlsx` para exportar — solo CSV
+
+**Qué:** el PRD v2.1 (sección 4) pide "XLSX y CSV generados en el servidor" para los reportes (RP-01 a RP-12). Generar un `.xlsx` binario real (es un zip con XML interno) necesita una librería — se probó instalar `xlsx` (SheetJS), la más usada para esto en Node.
+
+**Hallazgo:** `npm audit` reportó 2 vulnerabilidades de severidad alta en `xlsx` SIN parche disponible: Prototype Pollution (GHSA-4r6h-8v6p-xvw6) y ReDoS (GHSA-5pgg-2g8v-p4x9).
+
+**Análisis de riesgo real:** las dos vulnerabilidades son sobre PARSEAR un `.xlsx` de origen no confiable (el vector de ataque es un archivo malicioso que alguien sube/abre). El uso previsto acá era solo ESCRIBIR desde datos propios del servidor (nunca parsear un `.xlsx` ajeno en runtime) — en principio, un uso de solo-escritura no dispara ninguno de los dos CVEs. Aun así:
+
+**Decisión:** no instalar `xlsx`. **Alternativas consideradas:**
+1. Instalarlo igual, ya que el uso previsto no toca el código vulnerable — descartado: "sin parche disponible" significa que si en el futuro alguien agrega una importación de `.xlsx` (ej. para RF-36 "feriados con importación desde CSV" si se extendiera a xlsx, o cualquier otra razón), quedaría expuesto sin que sea obvio por qué, y una dependencia de runtime con vulnerabilidades conocidas sin arreglo es justamente el tipo de cosa que el encargo pide evitar si hay una alternativa razonable.
+2. Buscar una librería alternativa de generación de `.xlsx` sin las mismas vulnerabilidades — descartado por tiempo: no hay garantía de que la alternativa esté mejor mantenida, y evaluar varias librerías para esto no es proporcional al beneficio.
+3. **Elegida:** solo CSV (`lib/alquileres/exportar.ts`, `aCsv`), con BOM UTF-8 (para que Excel no rompa los acentos) y protección de inyección de fórmulas (T13/NF-S4, reutilizando `neutralizarFormula`). CSV abre perfectamente en Excel y Google Sheets — que es el uso real que le va a dar GAJ — sin ninguna dependencia nueva.
+
+**Verificado:** `exportar.test.ts` (4 pruebas); probado en vivo que los 4 reportes exportan CSV con headers y `Content-Disposition` correctos.
+
+---
+
+## 2026-10-02 — Fase 4: LOG_CAMBIOS y ACTUACION_PARTES eran gaps reales de Fase 1, no tareas nuevas de Fase 4
+
+**Qué:** al construir RP-10 ("Actividad y cambios") se encontró que LOG_CAMBIOS (modelado en `tipos.ts`/`esquema.ts` desde Fase 1, RF-38, prioridad M) nunca se escribía desde ningún alta/edición/baja — no había ninguna ruta ni repositorio que lo tocara. Al construir RP-02 ("Cartera", columna "locadores") se encontró lo mismo con ACTUACION_PARTES (RF-10): modelado desde Fase 1, pero sin ninguna ruta de API — lo que además significaba que R8 (mínimo un titular y un firmante antes de FORMALIZADA) nunca se había podido ejercitar de verdad, porque no había manera de cargar una parte.
+
+**Por qué pasaron desapercibidos tanto tiempo:** ninguna prueba de Fase 1-3 verificaba el EFECTO SECUNDARIO de escribir en LOG_CAMBIOS (las pruebas comprobaban el resultado directo de cada operación — "¿el inmueble quedó creado?", no "¿quedó auditado?"); y R8 nunca se probó porque nunca hubo cómo cargar una parte para violarlo o cumplirlo.
+
+**Decisión:** corregir los dos de raíz, no solo para que los reportes de Fase 4 tengan datos — LOG_CAMBIOS se conectó GENÉRICAMENTE en el repositorio (`repositorio-mock.ts`/`repositorio-sheets.ts`), no en cada ruta, para que no vuelva a pasar que una tabla nueva se olvide de auditar. ACTUACION_PARTES se conectó con su propia ruta (RF-10) y R8 se conectó en los dos lugares donde una actuación puede llegar a FORMALIZADA.
+
+**Alternativa considerada:** dejar ambos como "RP-10/RP-02 dan 0 o vacío, documentado como alcance de Fase 4, corrección de Fase 1 para una sesión futura" — descartada: ambos son prioridad M del PRD original (no "deseable"), encontrados DURANTE el trabajo normal de esta fase (no agregados fuera de alcance a propósito), y la corrección no tocó ningún comportamiento ya probado de las fases anteriores (se confirmó con la suite completa en verde antes y después). Mismo criterio que las correcciones de Fase 3 (duplicados en comunicaciones, `ConflictoVersionError` en hitos): un hallazgo real durante el trabajo normal se corrige en el momento, no se difiere solo porque "no es la tarea de hoy".
+
+**Verificado:** ver las entradas de `docs/PROGRESO.md` (Fase 4) y `docs/TRAZABILIDAD.md` para el detalle de pruebas y verificación en vivo de cada uno.
+
+---
+
+## 2026-10-02 — RF-39: el botón de respaldo REGISTRA que se hizo, no lo hace la app
+
+**Qué:** RF-39 [CAMBIO v2.1] describe "un botón del ADMINISTRADOR que copia la planilla a la carpeta de respaldos de Drive". Copiar algo a Drive necesita la API de Drive con la cuenta de servicio real — prohibido en este desarrollo.
+
+**Decisión:** el botón no copia nada; registra que el ADMINISTRADOR YA HIZO la copia manual por fuera de la app. Es exactamente el mismo patrón que RF-23 [CAMBIO v2.1] ya establece para los mails ("el envío real pasa por la casilla del gestor, la app solo guarda que pasó, con fecha y quién lo declaró") — no es una invención nueva de esta tarea, es aplicar un patrón que el propio PRD v2.1 ya eligió para el mismo tipo de problema (algo que debe pasar por fuera de la app porque automatizarlo requiere Google real).
+
+**Por qué no se construyó un botón que "simula" copiar a Drive** (ej. devolviendo una URL falsa de la carpeta) — mismo criterio que la decisión de RF-25/26/27 de arriba: fabricar la apariencia de una acción real que no ocurrió es exactamente lo que el encargo prohíbe, incluso como ayuda visual.
+
+**Verificado:** `administracion/respaldo/route.test.ts` (3 pruebas) y en vivo: sin ningún respaldo registrado, A8 encendida; `POST` registra hoy; `GET` después muestra "hace 0 días" y A8 apagada.
+
+---
+
+## 2026-10-02 — Pantalla de errores: `onRequestError` de Next.js en vez de try/catch manual en cada ruta
+
+**Qué:** la Fase 4 pide una "pantalla de errores". Se evaluó envolver cada ruta de Alquileres en un try/catch que llame a `registrarError()` — se descartó por el mismo motivo que llevó a construir RF-42 como una prueba genérica que recorre todas las rutas: un mecanismo que depende de que cada ruta nueva "se acuerde" de llamarlo es exactamente el tipo de cosa que ya se demostró que se olvida (ver la decisión de arriba sobre LOG_CAMBIOS/ACTUACION_PARTES, ambos gaps de "nadie se acordó de conectarlo").
+
+**Decisión:** usar `onRequestError`, una función que `src/instrumentation.ts` puede exportar desde Next 15 (API estable, no experimental) y que el framework llama SOLO, para cualquier error no capturado en cualquier ruta o render, sin que el código de la ruta sepa que existe. Se filtra para que solo registre errores de rutas de Alquileres (`/alquileres`, `/api/alquileres`), no del CLM.
+
+**Hallazgo durante la verificación:** `register()`/`onRequestError` se ligan una sola vez cuando arranca el proceso de `next dev` — un primer intento de verificación, editando `instrumentation.ts` con el servidor ya corriendo desde antes, dio "no se registró nada" porque el proceso en memoria nunca había cargado la versión nueva del archivo. Reiniciar `next dev` lo resolvió. Se documenta en `docs/PROGRESO.md` para que quien continúe no repita la misma confusión (a diferencia de casi todo el resto del código de este módulo, que sí tiene hot-reload en `next dev`).
+
+**Verificado:** `administracion/errores/route.test.ts` (3 pruebas) y en vivo: un `POST` con JSON inválido a una ruta real (`/api/alquileres/inmuebles`) disparó el error, y apareció solo, sin ningún cambio en esa ruta, en `GET /api/alquileres/administracion/errores`.

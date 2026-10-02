@@ -27,3 +27,24 @@ export async function register() {
     );
   }
 }
+
+/**
+ * Fase 4 ("pantalla de errores") — API estable desde Next 15
+ * (node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/instrumentation.md):
+ * se llama automáticamente para CUALQUIER error no capturado en cualquier
+ * ruta/render, sin que cada ruta tenga que llamar nada a mano (mismo
+ * criterio de "cobertura automática" que RF-42/T26 en este módulo). Solo
+ * se registra en ERRORES si el error ocurrió en una ruta de Alquileres —
+ * esta tabla es de este módulo, no del CLM (D2/D5: nunca se mezclan).
+ */
+export async function onRequestError(
+  error: unknown,
+  request: { path: string; method: string },
+  context: { routerKind: string; routePath: string; routeType: string }
+): Promise<void> {
+  if (!request.path.startsWith("/alquileres") && !request.path.startsWith("/api/alquileres")) return;
+
+  const { registrarError } = await import("@/lib/alquileres/repositorio/errores");
+  const mensaje = error instanceof Error ? error.message : String(error);
+  await registrarError(`${request.method} ${context.routePath} (${context.routeType})`, mensaje);
+}

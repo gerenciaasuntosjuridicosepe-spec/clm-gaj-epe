@@ -98,4 +98,8 @@ export const MOCK_USUARIOS: Usuario[] = [
   { id: "u6", nombre: "Administrador CLM", rolId: "administrador_sistema", area: "Sistemas", email: "paganinicg@gmail.com", rolAlquileres: "ADMINISTRADOR" },
   // Usuario ficticio de prueba, solo con rol en Alquileres (sin rolId del CLM) — para probar D12/T16'/T19: debe poder entrar a /alquileres y recibir "acceso no autorizado" en páginas del CLM.
   { id: "u7", nombre: "Gestora de Alquileres (prueba)", rolId: "", area: "GAJ", email: "gestora.alquileres@ejemplo.test", rolAlquileres: "GESTOR" },
+  // Usuario ficticio de prueba con rol LECTOR de Alquileres — hasta esta tarea (Fase 4) no existía ningún usuario mock con este rol,
+  // así que el caso LECTOR (oculta "Personas" del menú, enmascara datos personales en reportes, no puede exportar RP-02/RP-09) nunca
+  // se había verificado en vivo contra `npm run dev`, solo por pruebas unitarias con sesión simulada — ver docs/TRAZABILIDAD.md.
+  { id: "u8", nombre: "Lector de Alquileres (prueba)", rolId: "", area: "GAJ", email: "lector.alquileres@ejemplo.test", rolAlquileres: "LECTOR" },
 ];

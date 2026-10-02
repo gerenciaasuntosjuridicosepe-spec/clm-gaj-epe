@@ -108,4 +108,14 @@ RF-25 (generar un contrato/adenda real desde una plantilla de Google Docs, guard
 
 ---
 
+## 12. Copia real del respaldo a Google Drive (RF-39) — requiere Google real
+
+RF-39 [CAMBIO v2.1] ("Respaldo manual, D13") pide un botón que copie la planilla a la carpeta de respaldos de Drive con fecha en el nombre y aplique `retencion_backups_dias`. Copiar un archivo a una carpeta de Drive necesita la API de Drive con la cuenta de servicio real (y, antes que nada, que alguien complete `carpeta_drive_respaldos` en PARAMETROS, que en el xlsx reconstruido consta explícitamente "(a definir)" — ver punto 1 de este archivo) — ambas cosas prohibidas/imposibles en este desarrollo.
+
+Se construyó y probó la parte que SÍ es posible sin Google: el ADMINISTRADOR puede REGISTRAR que hizo la copia manualmente (`POST /api/alquileres/administracion/respaldo`), lo que alimenta "Último respaldo: hace N días" y la alerta A8 — mismo patrón que RF-23 ("Marcar como enviado").
+
+**Acción humana:** (a) completar `carpeta_drive_respaldos` en PARAMETROS; (b) cuando haya credenciales reales, implementar la copia real a Drive (mismo patrón que un futuro `GeneradorDocumentos` del punto 11: una interfaz + implementación real + una falsa para seguir probando sin Google) e invocarla desde el mismo botón, en vez de (o adicionalmente a) solo registrar la fecha; (c) implementar la limpieza por `retencion_backups_dias` (borrar respaldos más viejos que ese valor).
+
+---
+
 *(Este archivo se sigue completando a medida que avanza el desarrollo — ver docs/PROGRESO.md para el estado de cada fase.)*

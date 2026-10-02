@@ -1,12 +1,16 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { AlquileresDashboardClient } from "@/components/pages/alquileres-dashboard-client";
+import { RespaldoAdmin } from "@/components/pages/alquileres-respaldo-admin";
+import { auth } from "@/auth";
 import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioActuacionHitos } from "@/lib/alquileres/datos/actuacion-hitos";
 import { getRepositorioDocumentos } from "@/lib/alquileres/datos/documentos";
+import { obtenerParametro } from "@/lib/alquileres/datos/parametros";
 import { calcularDashboard } from "@/lib/alquileres/reglas/dashboard";
+import { alertaA8SinRespaldoReciente } from "@/lib/alquileres/reglas/alertas";
 import { CFG_HITOS_TIPO_SEED } from "@/lib/alquileres/catalogos/hitos-seed";
 import { numeroParametro, PARAMETROS_SEED } from "@/lib/alquileres/catalogos/parametros-seed";
-import { hoy } from "@/lib/alquileres/fechas";
+import { diferenciaDias, hoy } from "@/lib/alquileres/fechas";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +24,14 @@ export const dynamic = "force-dynamic";
  * 0 correctamente, no es un bug.
  */
 export default async function AlquileresDashboardPage() {
-  const [actuaciones, hitos, documentos] = await Promise.all([
+  const session = await auth();
+  const esAdministrador = session?.user?.rolAlquileres === "ADMINISTRADOR";
+
+  const [actuaciones, hitos, documentos, parametroRespaldo] = await Promise.all([
     getRepositorioActuaciones().listar(),
     getRepositorioActuacionHitos().listar(),
     getRepositorioDocumentos().listar(),
+    esAdministrador ? obtenerParametro("ultimo_respaldo_en") : Promise.resolve(undefined),
   ]);
 
   const { resumen, colaDeTrabajo } = calcularDashboard({
@@ -35,12 +43,23 @@ export default async function AlquileresDashboardPage() {
     alicuotaIva: numeroParametro(PARAMETROS_SEED, "alicuota_iva", 21),
   });
 
+  const ultimoRespaldoEn = parametroRespaldo?.valor;
+  const diasDesdeUltimoRespaldo = ultimoRespaldoEn ? diferenciaDias(ultimoRespaldoEn, hoy()) : undefined;
+
   return (
     <AppShell titulo="Dashboard — Alquileres">
       <div className="mb-1 font-[var(--font-display)] text-[var(--text-2xl)] font-bold">Dashboard</div>
       <p className="mb-5 text-[var(--text-sm)] text-[var(--color-text-secondary)]">
         Qué está en riesgo hoy, qué vence en los próximos meses y qué hay que hacer (PRD v1, sección 8).
       </p>
+
+      {esAdministrador && (
+        <RespaldoAdmin
+          ultimoRespaldoEn={ultimoRespaldoEn}
+          diasDesdeUltimoRespaldo={diasDesdeUltimoRespaldo}
+          alertaA8={alertaA8SinRespaldoReciente(ultimoRespaldoEn, hoy(), numeroParametro(PARAMETROS_SEED, "dias_alerta_respaldo", 7))}
+        />
+      )}
 
       <AlquileresDashboardClient resumen={resumen} colaDeTrabajo={colaDeTrabajo} />
     </AppShell>

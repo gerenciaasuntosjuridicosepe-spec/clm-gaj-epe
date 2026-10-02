@@ -16,3 +16,28 @@ export function buscarPersonaDuplicada(
       ((datos.cuitCuil && p.cuitCuil === datos.cuitCuil) || (datos.dni && p.dni === datos.dni))
   );
 }
+
+/**
+ * RP-09 (calidad de datos) — a diferencia de `buscarPersonaDuplicada`
+ * (un candidato nuevo contra lo existente, para el alta), esta recorre
+ * TODAS las personas activas buscando grupos ya duplicados por DNI o por
+ * CUIT/CUIL (ej. si R9 no se aplicó en algún momento, o si dos personas se
+ * cargaron casi a la vez). Devuelve un grupo por cada documento repetido.
+ */
+export function buscarGruposDuplicados(personas: Persona[]): { documento: string; personas: Persona[] }[] {
+  const activas = personas.filter((p) => p.activo);
+  const porDocumento = new Map<string, Persona[]>();
+
+  for (const p of activas) {
+    for (const doc of [p.dni, p.cuitCuil]) {
+      if (!doc) continue;
+      const grupo = porDocumento.get(doc) ?? [];
+      grupo.push(p);
+      porDocumento.set(doc, grupo);
+    }
+  }
+
+  return Array.from(porDocumento.entries())
+    .filter(([, grupo]) => grupo.length > 1)
+    .map(([documento, grupo]) => ({ documento, personas: grupo }));
+}

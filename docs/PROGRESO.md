@@ -17,7 +17,7 @@ Documentos de referencia: `docs/DECISIONES.md` (por qué se decidió cada cosa),
 | Fase 1 (cimientos del módulo) | **Cerrada** — 2026-10-01, ver "Fase 1 — cierre" más abajo |
 | Fase 2 (hitos, alertas, dashboard, calendario) | **Cerrada** — 2026-10-02, ver "Fase 2 — cierre" más abajo |
 | Fase 3 (comunicaciones y documentos) | **Cerrada en lo posible sin Google real** — 2026-10-02, ver "Fase 3 — cierre" más abajo; lo que requiere Google real queda en PENDIENTES-HUMANOS.md puntos 10-11 |
-| Fase 4 (reportes y operación) | No iniciada |
+| Fase 4 (reportes y operación) | **Cerrada en lo posible sin Google real** — 2026-10-02, ver "Fase 4 — cierre" más abajo; es la última fase del encargo (Fase 5/6 quedan fuera de alcance) |
 | Fase 5/6 (piloto, migración) | Fuera de alcance de este desarrollo — requieren dictamen GAJ y datos reales (ver PENDIENTES-HUMANOS.md) |
 
 ## Fase 0 — cierre
@@ -79,27 +79,51 @@ Cerrada el 2026-10-02, en lo que es posible sin Google real (ver `docs/TRAZABILI
 
 **Limitaciones aceptadas, documentadas, no bloqueantes:** sin UI propia para comunicaciones/documentos/actos (solo API, dentro de la ficha de la actuación que todavía no existe); RF-12 sin pantalla de edición propia; R17/R18 (RF-14) sin ruta que las invoque.
 
+## Fase 4 — cierre
+
+Cerrada el 2026-10-02 — **última fase del encargo** (Fase 5/6 quedan fuera de alcance, ver `docs/PENDIENTES-HUMANOS.md`). Antes de escribir código se releyó la sección 9 del PRD v1 (RP-01 a RP-12) y la sección 4 del v2.1 (exportaciones XLSX/CSV simplificadas, respaldo manual D13/RF-39, LOG_CAMBIOS M9/M17). Dos hallazgos reales de Fase 1 (modelados en el esquema desde el principio, nunca conectados a ninguna ruta) aparecieron al construir esta fase y se corrigieron de raíz, no solo para los reportes:
+
+- **RF-38/M9/M17 (LOG_CAMBIOS):** nunca se escribía ninguna fila, a pesar de ser prioridad M desde el PRD v1. Se conectó GENÉRICAMENTE en `repositorio-mock.ts`/`repositorio-sheets.ts` (`crear`/`actualizar`/`actualizarMultiple`) — cualquier tabla del módulo queda auditada sola, sin que cada ruta tenga que acordarse de llamar nada. Una entrada ALTA por alta, una MODIFICACION por cada campo que cambió (ignora los de auditoría que siempre cambian), una BAJA cuando el único cambio es `activo: true→false`, y una CONFLICTO_VERSION cuando `actualizar()` rechaza por versión vieja (M17) — sin interrumpir la operación de negocio si falla la escritura del log. `repositorio/log-cambios.ts` (nuevo), 7 pruebas propias + 2 en cada repositorio genérico.
+- **RF-10 (ACTUACION_PARTES):** tampoco tenía ninguna ruta de API, así que R8 ("al menos un titular y un firmante para CONTRATO/ADENDA antes de FORMALIZADA") nunca se había podido ejercitar de verdad. Se agregó `POST/GET .../actuaciones/[id]/partes` y se conectó R8 en los dos caminos a FORMALIZADA que existen (`cumplir-hito-servicio.ts` para CONTRATO vía H-15, `[id]/route.ts` para ADENDA vía edición directa del estado) — verificado en vivo: sin partes, el estado se queda en EN_TRAMITE/rechaza; con un titular y un firmante, pasa a FORMALIZADA.
+- RP-01 (Vencimientos por horizonte), RP-02 (Cartera de contratos vigentes), RP-09 (Calidad de datos) y RP-10 (Actividad y cambios, que valida el punto anterior) — los 4 reportes más directamente ligados al criterio de cierre de la fase ("las cifras de los reportes coinciden con el dashboard") y al hallazgo de LOG_CAMBIOS. RP-03 a RP-08, RP-11 y RP-12 no se construyeron — ver "Próximas tareas".
+- Exportación CSV (`lib/alquileres/exportar.ts`, `aCsv`) con BOM UTF-8, escape RFC 4180 y protección de inyección de fórmulas (T13/NF-S4) — **no XLSX binario real**: se evaluó instalar `xlsx` (SheetJS) y se descartó por tener 2 vulnerabilidades de severidad alta sin parche (`npm audit`, Prototype Pollution + ReDoS) — ver `docs/DECISIONES.md`.
+- RF-39 [CAMBIO v2.1] (respaldo manual + alerta A8): botón del ADMINISTRADOR en el dashboard que REGISTRA que ya hizo la copia manual a Drive (la app no la hace — necesitaría la API de Drive real, fuera de los límites duros) — mismo patrón que "Marcar como enviado" de RF-23. Verificado en vivo: sin respaldo nunca registrado, A8 encendida; al registrar, se apaga y muestra "hace 0 día(s)".
+- Pantalla de errores: `src/instrumentation.ts` ganó `onRequestError` (API estable desde Next 15 — cobertura automática de CUALQUIER error no capturado en cualquier ruta de Alquileres, sin tocar cada ruta una por una, mismo criterio que RF-42/T26). Verificado en vivo provocando un error real (JSON inválido en un POST) — apareció solo en `/api/alquileres/administracion/errores`. **Nota importante encontrada en la verificación:** `onRequestError`/`register()` se ligan una sola vez al iniciar el proceso de `next dev` — editar `instrumentation.ts` con el servidor ya corriendo NO alcanza, hace falta reiniciar `next dev` para que el cambio tome efecto (a diferencia de casi todo el resto del código, que sí tiene hot-reload). Esto explicó un primer intento de verificación que dio "vacío" por error de método, no por un bug real — documentado para no repetir la confusión.
+- Se agregó un usuario mock LECTOR (`lector.alquileres@ejemplo.test`, `u8`) — no existía ninguno hasta esta tarea, así que el caso LECTOR (oculta "Personas" del menú, enmascara `locadores` en RP-02, bloquea RP-09/RP-10/exportar) nunca se había verificado en vivo, solo por pruebas unitarias con sesión simulada. Verificado en vivo de punta a punta en esta tarea.
+
+**Limitaciones aceptadas, documentadas, no bloqueantes:** RP-03 a RP-08, RP-11, RP-12 no construidos (mismo patrón que los 4 que sí se hicieron, quedan para quien continúe); PDF por impresión del navegador no se armó (hoja de estilos de impresión específica) — las pantallas ya son HTML con tablas simples, imprimibles tal cual con el navegador, pero sin una hoja `@media print` dedicada; RF-37 (editar parámetros ya sembrados y que se aplique de inmediato) sigue sin wiring completo — la mayoría del código lee `PARAMETROS_SEED` directo, no el repositorio (ver nota en `datos/parametros.ts`); "Administración" como sección de menú propia (RF-41) no se armó — Áreas/Contactos EPE/Plantillas/Feriados/Parámetros siguen sin ABM con pantalla (solo API, construida en Fases 3-4 a medida que algo las necesitó).
+
 ## Tarea actual
 
-Fase 4 — reportes y operación. No iniciada todavía.
+Ninguna — Fase 4 (última del encargo) cerrada. Sigue la revisión adversarial final de todo el branch y `docs/INFORME-FINAL.md` (sección 7 del encargo).
 
-## Próximas tareas (orden previsto)
+## Próximas tareas (orden previsto, todas para quien continúe — fuera del límite de esta sesión)
 
-1. Releer la sección 7.5 del PRD v1 y lo que corresponda de v2.1 sobre reportes (RP-01 a RP-12), exportaciones, impresión a PDF, respaldo y pantalla de errores, antes de escribir código.
-2. R17/R18 wiring (diferido de Fases 2 y 3): aplicar `aplicarCambioTipoActuacion` (RF-14) y las condiciones automáticas de NO_APLICA de R18 — si no entra naturalmente en Fase 4, queda para backlog final.
-3. UI: pantallas propias para comunicaciones/documentos/actos dentro de la ficha de la actuación (RF-16) y edición de RF-12 — si no entran en Fase 4, van al informe final como trabajo de UI pendiente.
+1. Revisión adversarial de cierre de Fase 4 (mismo proceso que las 3 anteriores) y después el informe final.
+2. RP-03 a RP-08, RP-11, RP-12 — mismo patrón que los 4 ya construidos (agregación pura + ruta + página + export CSV).
+3. R17/R18 wiring (diferido desde Fase 2): aplicar `aplicarCambioTipoActuacion` (RF-14) y las condiciones automáticas de NO_APLICA de R18.
+4. UI: pantallas propias para comunicaciones/documentos/actos/partes dentro de una ficha de detalle de la actuación (RF-16, todavía no existe) y edición de RF-12 — hoy todo eso es API-only.
+5. RF-37 completo: migrar las lecturas de `PARAMETROS_SEED` al repositorio (`datos/parametros.ts`) para que editar un parámetro se aplique de verdad, con una pantalla de Administración.
+6. Lo que requiere Google real (RF-25 generación de documentos, RF-39 copia real a Drive) o contenido legal (redacción de IVA/actualización) — ver `docs/PENDIENTES-HUMANOS.md`, puntos 10 y 11.
 
-## Resultado de las últimas pruebas (2026-10-02)
+## Resultado de las últimas pruebas (2026-10-02, cierre de Fase 4)
 
 ```
 > clm-gaj-epe@0.1.0 test
 > vitest run --run
 
- Test Files  48 passed (48)
-      Tests  383 passed (383)
+ Test Files  56 passed (56)
+      Tests  440 passed (440)
 ```
 
-`npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK — sin rutas nuevas en esta tanda (RF-25/26/27 es solo lógica de librería, sin ruta de API todavía — ver DECISIONES.md sobre por qué deliberadamente no se creó una ruta "generar documento" simulada).
+`npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK — agrega `/api/alquileres/actuaciones/[id]/partes`, `/api/alquileres/reportes/{vencimientos,cartera,calidad-datos,actividad}`, `/api/alquileres/administracion/{respaldo,errores}`, `/alquileres/reportes` (+4 subpáginas), `/alquileres/administracion/errores`; todo lo anterior sin cambios.
+
+### 2026-10-02 — Fase 4: LOG_CAMBIOS (RF-38/M9/M17), ACTUACION_PARTES (RF-10) + R8, RP-01/02/09/10, exportación CSV, respaldo (RF-39/A8), pantalla de errores
+
+Ver el detalle completo en "Fase 4 — cierre" más arriba. Resumen de archivos nuevos: `repositorio/log-cambios.ts`, `repositorio/errores.ts`, `datos/{actuacion-partes,parametros}.ts`, `app/api/alquileres/actuaciones/[id]/partes/route.ts`, `reglas/{rp01-vencimientos,rp02-cartera,rp09-calidad-datos}.ts`, `lib/alquileres/exportar.ts`, `app/api/alquileres/reportes/{vencimientos,cartera,calidad-datos,actividad}/route.ts`, `app/alquileres/reportes/**`, `app/api/alquileres/administracion/{respaldo,errores}/route.ts`, `app/alquileres/administracion/errores/page.tsx`, `components/pages/alquileres-respaldo-admin.tsx`. Modificados: `repositorio-mock.ts`/`repositorio-sheets.ts` (hook genérico a LOG_CAMBIOS), `repositorio/index.ts` (`obtenerTransporteHttpCompartido` extraído y reusado), `servicios/cumplir-hito-servicio.ts` y `app/api/alquileres/actuaciones/[id]/route.ts` (R8), `src/instrumentation.ts` (`onRequestError`), `permisos.ts` (`MATRIZ_REPORTES`), `navegacion.ts`/`sidebar.tsx` (ítem "Reportes"), `src/lib/data/mock-catalogos.ts` (usuario LECTOR de prueba, `u8`).
+
+- **Verificado en vivo, de punta a punta, contra `npm run dev`** (no solo con pruebas): alta → LOG_CAMBIOS con la entrada ALTA correspondiente; formalización + cumplir hitos sin partes → R8 bloquea FORMALIZADA (se queda en EN_TRAMITE); agregado un titular y un firmante → FORMALIZADA de verdad; RP-01/RP-02/RP-09 con datos reales, cifras coherentes entre sí; exportación CSV con headers y BOM correctos; RF-39 con A8 encendida sin respaldo y apagada después de registrar uno; `onRequestError` registrando un error real (JSON inválido) en la pantalla de errores — con la salvedad del reinicio de `next dev` ya anotada arriba; usuario LECTOR viendo RP-02 con `locadores` vacío y recibiendo 403 en RP-09/RP-10/exportar/Personas, y el sidebar ocultándole "Personas" correctamente.
+- `npm test`: 440/440 OK (385 al empezar esta fase → 440, +55 pruebas nuevas). `npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK.
 
 ### 2026-10-02 — RF-25/26/27 (parcial): lógica pura de armado de plantillas, sin Google
 
