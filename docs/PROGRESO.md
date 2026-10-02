@@ -55,29 +55,37 @@ Cerrada el 2026-10-01. Se construyeron los cimientos completos del módulo (ver 
 
 ## Tarea actual
 
-Fase 2 — hitos, alertas y dashboard. Hecho hasta ahora: RF-19 (generación automática de hitos al crear un CONTRATO), RF-20 (cumplimiento de un hito, con recálculo de R13/R14) y RF-21 (reprogramar/NO_APLICA) — RF-19/RF-20 verificados en vivo de punta a punta, RF-21 verificado por las pruebas de la ruta.
+Fase 2 — hitos, alertas y dashboard. Hecho hasta ahora: RF-19, RF-20, RF-21 (hitos), el Dashboard (RF-40/sección 8 del PRD v1) y RF-12 parcial (formalización guiada de una actuación: carga de los campos que exige R4', con R5 para la fecha de fin y T20 para la concurrencia) — todo verificado en vivo de punta a punta, incluyendo el camino completo alta → formalización → cumplimiento de hitos → estado derivado (R14) → reflejo correcto en el dashboard.
 
 ## Próximas tareas (orden previsto)
 
 1. R17/R18 wiring: aplicar `aplicarCambioTipoActuacion` cuando se cambia el tipo de una actuación (RF-14, todavía no hay ruta para esto), y las condiciones automáticas de NO_APLICA de R18 (H-02 si el sector no es SUCURSAL, H-03 si H-02/H-21 ya cumplidos, H-04 si hay PROPUESTA_LOCADOR) — hoy son funciones puras probadas pero nadie las invoca todavía desde una ruta.
-2. Dashboard (sección 8 del PRD v1): tarjetas de indicadores, cola de trabajo con las alertas A1-A8 ya implementadas como reglas puras, gráficos (Recharts, ya instalado).
-3. Calendario propio del módulo (RF-40): vencimientos efectivos e hitos previstos.
-4. Alertas (RF del v1 sección 7.1 adaptado): pantalla propia, reutilizando las funciones de `reglas/alertas.ts`.
-5. Cerrar Fase 2: verificar que T2-T10 (ya reproducidos en las pruebas de reglas) se vean también reflejados correctamente end-to-end en el dashboard con datos de prueba ficticios, revisión adversarial, `docs/TRAZABILIDAD.md` al día.
+2. Calendario propio del módulo (RF-40, la parte que falta): vencimientos efectivos e hitos previstos en una vista de calendario (puede reutilizar `calendario-mes.tsx` del CLM con un adaptador, sección 4 del PRD v2.1, punto "Qué se reutiliza" — o construir uno propio si el tipo de evento actual lo impide).
+3. Alertas (RF del v1 sección 7.1 adaptado): pantalla propia, reutilizando las funciones de `reglas/alertas.ts` (la cola de trabajo del dashboard ya las usa; esta pantalla sería una vista más detallada/filtrable de lo mismo).
+4. Completar RF-12: hoy `[id]/route.ts` solo cubre la carga de los campos de formalización (R4'/R5/T20); falta la UI de edición en la ficha de la actuación (hoy la ficha de detalle, más allá del alta rápida, todavía no tiene pantalla propia) y, si corresponde, un endpoint equivalente para LEGITIMO_ABONO (que no pasa por R5 porque no tiene `plazo_meses`).
+5. Nota menor encontrada durante la verificación en vivo de RF-12 (no bloqueante, documentada acá para no perderla): `[id]/hitos/route.ts` llama a `actualizar()` sobre Actuaciones e Hitos sin capturar `ConflictoVersionError` — hoy un conflicto de versión en esa ruta responde 500 en vez de 409. No se tocó en esta tarea para no mezclar alcance; usar `esConflictoVersionError()` (ver más abajo) si se corrige.
+6. Cerrar Fase 2: revisión adversarial, `docs/TRAZABILIDAD.md` al día con RF-12/Dashboard, y recién ahí pasar a Fase 3.
 
 ## Resultado de las últimas pruebas (2026-10-02)
 
 ```
 > clm-gaj-epe@0.1.0 test
-> vitest run
+> vitest run --run
 
- Test Files  42 passed (42)
-      Tests  339 passed (339)
+ Test Files  44 passed (44)
+      Tests  352 passed (352)
 ```
 
-`npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK.
+`npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK — genera, entre otras, las 4 páginas (`/alquileres/{inmuebles,expedientes,personas,actuaciones}`), `/alquileres` (dashboard), las 4 rutas de API raíz, `/api/alquileres/actuaciones/[id]`, `/api/alquileres/actuaciones/[id]/hitos`, más `/sin-acceso` y todas las rutas del CLM sin cambios.
 
-`npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK — genera, entre otras, las 4 páginas (`/alquileres/{inmuebles,expedientes,personas,actuaciones}`), las 4 rutas de API raíz y `/api/alquileres/actuaciones/[id]/hitos`, más `/sin-acceso` y todas las rutas del CLM sin cambios.
+### 2026-10-02 — RF-12 (parcial: formalización guiada) + bug real encontrado y corregido (identidad de clase entre "layers")
+
+- `src/app/api/alquileres/actuaciones/[id]/route.ts`: `GET` (ficha de detalle) + `PATCH` (edita los campos que pide R4' para poder formalizar: `fechaInicio`, `plazoMeses`, `fechaFin`, `canonInicial`, `montoTotalReconocido`, `condicionIvaCanon`, `destinoCategoria`, `destinoDescripcion`, `reglaActualizacion`, `firmanteEpeContactoId`, `observaciones`). No fuerza el paso a FORMALIZADA — eso sigue ocurriendo únicamente al cumplir H-15 (R14, ya existente en `[id]/hitos/route.ts`); esta ruta solo asegura que los datos estén disponibles para que R4' lo permita. R5 decide la `fecha_fin`: si se informan `fechaInicio`+`plazoMeses` sin `fechaFin`, la calcula; si se informa una `fechaFin` distinta de la calculada, exige `motivoCambioFecha` (si no, 400). `version` es obligatoria en el cuerpo (T20); un conflicto de versión responde 409 vía `ConflictoVersionError`.
+- **Bug real encontrado por la prueba de esta ruta, no por revisión de código** (`route.test.ts`, caso T20): el primer `PATCH` exitoso + un segundo `PATCH` con la misma `version` vieja debía dar 409, pero el error se propagaba sin capturar (test rojo con el stack trace completo, no un simple "expected 409 got 500"). Causa: el caché de repositorios vive en `globalThis` (`repositorio/index.ts`, comentario ya existente ahí) justamente para que un Route Handler y un Server Component compartan los mismos datos aunque Turbopack les dé grafos de módulos ("layers") separados. Eso resuelve que los DATOS se vean iguales, pero no que las CLASES de error sean "la misma clase": si el repositorio cacheado fue instanciado por el módulo de otra layer, los errores que lanza son instancias de la clase `ConflictoVersionError` de ESA OTRA layer, y `err instanceof ConflictoVersionError` (comparando contra la clase de ESTA layer) da `false` aunque sea "el mismo" error en todo sentido observable — el `catch` entonces relanza el error en vez de devolver 409. Se reprodujo el efecto exacto en Vitest con `vi.resetModules()` entre `beforeEach` y las importaciones dinámicas del test (mismo mecanismo que las layers de Turbopack: dos instancias del mismo módulo fuente).
+  - **Corrección en la raíz**, no solo en el test: `tipos-repositorio.ts` agrega `esConflictoVersionError(err): err is ConflictoVersionError`, un type guard por "duck typing" (compara `err.name === "ConflictoVersionError"` + la forma de sus campos, no la clase) — la forma estándar de identificar errores propios que puedan cruzar "realms"/grafos de módulos. `[id]/route.ts` lo usa en vez de `instanceof`. Es el único lugar de producción que hoy compara `ConflictoVersionError` por clase (se confirmó con `grep -rn "instanceof ConflictoVersionError" src/`, sin otros resultados) — si se agrega otro en el futuro, usar `esConflictoVersionError()` directamente.
+- `route.test.ts` (5 pruebas): exige `version`, T2 (fecha_fin por defecto vía R5), R5 con `fechaFin` distinta sin motivo (rechaza) y con motivo (acepta), y T20 end-to-end (segundo `PATCH` con version vieja → 409, sin perder el cambio exitoso anterior — verificado leyendo de nuevo con `GET`).
+- **Verificado en vivo** (`npm run dev`, login `dev-bypass` como `gestora.alquileres@ejemplo.test`/GESTOR): alta de inmueble + actuación CONTRATO → `PATCH` con `fechaInicio`/`plazoMeses`/`canonInicial`/`condicionIvaCanon` → `fechaFin` calculada correctamente (`2026-04-01` + 24 meses → `2028-03-31`) → reintento con la misma `version` → **409** real por HTTP (no solo en la prueba) → `GET` confirma que el cambio exitoso anterior no se perdió. Completando además `destinoCategoria`/`destinoDescripcion`/`firmanteEpeContactoId` y cumpliendo H-01/H-05/H-20/H-15 (en ese orden, solo para ejercitar la función — no es el orden real de uso) se vio R14 mover el estado PENDIENTE_AVISO → FORMALIZADA → CERRADA correctamente (H-20 cumplido manda, según el orden de prioridad documentado en `r14-estado-derivado.ts`: esto es la regla funcionando como está especificada, no un bug). El dashboard (`/alquileres`) reflejó de inmediato: 1 contrato vigente, canon neto $150.000, 1 "vence > 180 días", y la cola de trabajo con los 3 hitos todavía atrasados de esa misma actuación (H-02/H-21/H-03) — primera verificación end-to-end real de que el dashboard reacciona a datos con `fecha_fin`, pendiente desde el cierre de la tarea anterior.
+- `npm test`: 352/352 OK (de 346 a 352: +5 de `route.test.ts`, +1 de la cobertura automática de guardia de sesión que ya detecta la ruta nueva sola, RF-42). `npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK (agrega `/api/alquileres/actuaciones/[id]`).
 
 ## Resultado de las últimas pruebas (Fase 0, cierre)
 
@@ -338,3 +346,11 @@ Route (app)
 - `src/app/api/alquileres/actuaciones/[id]/hitos/route.ts`: el `PATCH` ahora acepta `accion: "cumplir" | "reprogramar" | "no_aplica"` (default `"cumplir"`, compatible con lo que ya usaba RF-20). Reprogramar/NO_APLICA actualizan un solo hito con control de versión (T20); no disparan el recálculo de R14 (ninguna de las dos acciones marca un hito `CUMPLIDO`, que es lo único que R14 mira). 5 pruebas nuevas de la ruta (`route.test.ts`), incluidos los dos rechazos por falta de motivo.
 - No se verificó esta tanda contra `npm run dev` en vivo (ya se había verificado el mecanismo de persistencia/versión con RF-19/RF-20 en la tanda anterior, y las pruebas de la ruta cubren el mismo camino de código) — si en una revisión posterior aparece algo raro específico de estas dos acciones, revisar primero en vivo antes de asumir que es un problema de las pruebas.
 - `npm test`: 339/339 OK. `npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK.
+
+### 2026-10-02 — Dashboard del módulo (RF-40/sección 8 del PRD v1)
+
+- `reglas/dashboard.ts` (`calcularDashboard`): agregación pura sobre las reglas ya implementadas en Fase 1 (alertas A1/A4/A5/A6, C4 renovación en curso, R16 canon neto) — ninguna cuenta nueva, solo orquestación de lo que ya estaba probado. Devuelve el resumen de tarjetas y la cola de trabajo, ordenada por urgencia (A5, A1, A4, A6 — PRD v1 sección 8). 7 pruebas, incluida T7 (canon neto excluye los contratos sin dato de IVA) y el orden de la cola.
+- `src/app/alquileres/page.tsx` (nueva, en la raíz del módulo) + `alquileres-dashboard-client.tsx`: tarjetas (`KpiCard`, reutilizado del CLM) y tabla de cola de trabajo. Agregado como primer ítem del menú de Alquileres ("Dashboard", `src/lib/alquileres/navegacion.ts` + ícono nuevo en `sidebar.tsx`).
+- Nota de alcance explícita en el código y acá: varios indicadores (situación de vigencia, semáforo de vencimiento, canon) dependen de `fecha_fin`, que recién se carga al formalizar una actuación (RF-12, todavía no construido) — con los datos de Fase 1/2 (altas rápidas, RF-11) esos indicadores dan 0 correctamente, no es un bug. A6 (formalizada sin escaneado) siempre da 0 porque no hay ABM de Documentos todavía (Fase 3).
+- **Verificado en vivo** (`npm run dev`): se creó un inmueble y una actuación CONTRATO, se abrió `/alquileres` → la página muestra las 8 tarjetas y la cola de trabajo (vacía con estos datos, correctamente — la actuación recién creada no tiene `fecha_fin` todavía, así que ninguna alerta que dependa de ella puede evaluarse). Sidebar muestra "Dashboard" como primer ítem. Sin errores en el log del servidor.
+- `npm test`: 346/346 OK. `npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK (agrega `/alquileres`).

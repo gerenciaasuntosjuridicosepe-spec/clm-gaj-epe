@@ -14,7 +14,7 @@
 export interface NavItemAlquileres {
   href: string;
   label: string;
-  icon: "inmuebles" | "expedientes" | "actuaciones" | "personas";
+  icon: "dashboard" | "inmuebles" | "expedientes" | "actuaciones" | "personas";
   /** Si se informa, el ítem solo se muestra si `filtro(rol)` da true (ej. Personas oculto para LECTOR). */
   filtro?: (rol: import("./tipos").RolAlquileresId) => boolean;
 }
@@ -28,6 +28,7 @@ export const NAV_GROUPS_ALQUILERES: NavGroupAlquileres[] = [
   {
     label: "Alquileres",
     items: [
+      { href: "/alquileres", label: "Dashboard", icon: "dashboard" },
       { href: "/alquileres/inmuebles", label: "Inmuebles", icon: "inmuebles" },
       { href: "/alquileres/expedientes", label: "Expedientes", icon: "expedientes" },
       { href: "/alquileres/actuaciones", label: "Actuaciones", icon: "actuaciones" },

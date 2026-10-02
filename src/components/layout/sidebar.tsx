@@ -19,6 +19,7 @@ import {
   Folder,
   FileSignature,
   UserRound,
+  LayoutDashboard,
 } from "lucide-react";
 import { NAV_GROUPS, NavItem } from "@/lib/navegacion";
 import { NAV_GROUPS_ALQUILERES, NavItemAlquileres } from "@/lib/alquileres/navegacion";
@@ -39,6 +40,7 @@ const ICONS: Record<NavItem["icon"], React.ComponentType<{ size?: number }>> = {
 };
 
 const ICONS_ALQUILERES: Record<NavItemAlquileres["icon"], React.ComponentType<{ size?: number }>> = {
+  dashboard: LayoutDashboard,
   inmuebles: Building2,
   expedientes: Folder,
   actuaciones: FileSignature,
