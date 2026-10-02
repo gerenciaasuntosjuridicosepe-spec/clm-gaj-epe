@@ -1,5 +1,6 @@
 import { ConflictoVersionError, type OpcionesListar, type RepositorioTabla } from "./tipos-repositorio";
 import { ahoraIso } from "../fechas";
+import { registrarAlta, registrarCambiosDeActualizacion, registrarConflictoVersion } from "./log-cambios";
 
 export interface OpcionesRepositorioMock<T extends { version: number; activo: boolean }> {
   prefijo: string;
@@ -51,6 +52,7 @@ export class RepositorioMock<T extends { version: number; activo: boolean }> imp
       version: 1,
     } as unknown as T;
     this.datos.push(completo);
+    await registrarAlta(this.opciones.nombreTabla, id, creadoPor);
     return completo;
   }
 
@@ -60,6 +62,7 @@ export class RepositorioMock<T extends { version: number; activo: boolean }> imp
 
     const actual = this.datos[idx];
     if (actual.version !== versionEsperada) {
+      await registrarConflictoVersion(this.opciones.nombreTabla, id, modificadoPor);
       throw new ConflictoVersionError(this.opciones.nombreTabla, id, versionEsperada, actual.version);
     }
 
@@ -72,6 +75,13 @@ export class RepositorioMock<T extends { version: number; activo: boolean }> imp
       modificadoPor,
     } as T;
     this.datos[idx] = actualizado;
+    await registrarCambiosDeActualizacion(
+      this.opciones.nombreTabla,
+      id,
+      modificadoPor,
+      actual as unknown as Record<string, unknown>,
+      actualizado as unknown as Record<string, unknown>
+    );
     return actualizado;
   }
 
@@ -81,31 +91,42 @@ export class RepositorioMock<T extends { version: number; activo: boolean }> imp
     modificadoPor: string
   ): Promise<T[]> {
     // Valida todo antes de tocar nada.
-    const indices = entradas.map((entrada) => {
+    const indices: number[] = [];
+    for (const entrada of entradas) {
       const idx = this.datos.findIndex((o) => (o[this.opciones.campoId] as unknown) === entrada.id);
       if (idx === -1) throw new Error(`No existe ${this.opciones.nombreTabla}/${entrada.id}.`);
       const actual = this.datos[idx];
       if (actual.version !== entrada.versionEsperada) {
+        await registrarConflictoVersion(this.opciones.nombreTabla, entrada.id, modificadoPor);
         throw new ConflictoVersionError(this.opciones.nombreTabla, entrada.id, entrada.versionEsperada, actual.version);
       }
-      return idx;
-    });
+      indices.push(idx);
+    }
 
     const ahora = ahoraIso();
     const resultados: T[] = [];
-    indices.forEach((idx, i) => {
+    for (let i = 0; i < indices.length; i++) {
+      const idx = indices[i];
       const entrada = entradas[i];
+      const anterior = this.datos[idx];
       const actualizado: T = {
-        ...this.datos[idx],
+        ...anterior,
         ...entrada.cambios,
         [this.opciones.campoId]: entrada.id,
-        version: this.datos[idx].version + 1,
+        version: anterior.version + 1,
         modificadoEn: ahora,
         modificadoPor,
       } as T;
       this.datos[idx] = actualizado;
+      await registrarCambiosDeActualizacion(
+        this.opciones.nombreTabla,
+        entrada.id,
+        modificadoPor,
+        anterior as unknown as Record<string, unknown>,
+        actualizado as unknown as Record<string, unknown>
+      );
       resultados.push(actualizado);
-    });
+    }
     return resultados;
   }
 }

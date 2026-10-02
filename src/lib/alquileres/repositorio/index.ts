@@ -55,6 +55,19 @@ function getCacheRepos(): Map<string, RepositorioTabla<never>> {
 }
 
 /**
+ * El mismo `TransporteSheetsHttp` compartido que usan los repositorios
+ * "normales" (una sola conexión por proceso) — expuesto para que
+ * `repositorio/log-cambios.ts` (M17/RF-38) escriba en la hoja LOG_CAMBIOS
+ * sin abrir una segunda conexión. Devuelve `undefined` si no hay Sheets
+ * configurado (modo mock) — el llamador decide qué hacer en ese caso.
+ */
+export function obtenerTransporteHttpCompartido(): TransporteSheetsHttp | undefined {
+  if (!googleSheetsAlquileresConfigurado()) return undefined;
+  if (!cacheGlobal.__alquileresTransporteHttp) cacheGlobal.__alquileresTransporteHttp = new TransporteSheetsHttp();
+  return cacheGlobal.__alquileresTransporteHttp;
+}
+
+/**
  * Fábrica única del repositorio de cualquier tabla del módulo de
  * Alquileres: elige Sheets real o el mock en memoria según
  * `googleSheetsAlquileresConfigurado()` (mismo patrón que
@@ -75,9 +88,9 @@ export function crearRepositorio<T extends { version: number; activo: boolean }>
   if (existente) return existente as RepositorioTabla<T>;
 
   let repo: RepositorioTabla<T>;
-  if (googleSheetsAlquileresConfigurado()) {
-    if (!cacheGlobal.__alquileresTransporteHttp) cacheGlobal.__alquileresTransporteHttp = new TransporteSheetsHttp();
-    repo = new RepositorioSheets<T>({ transporte: cacheGlobal.__alquileresTransporteHttp, ...opciones });
+  const transporte = obtenerTransporteHttpCompartido();
+  if (transporte) {
+    repo = new RepositorioSheets<T>({ transporte, ...opciones });
   } else {
     exigirMockPermitido(opciones.nombreTabla);
     repo = new RepositorioMock<T>({

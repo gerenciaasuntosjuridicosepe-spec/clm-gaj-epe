@@ -4,6 +4,7 @@ import { ahoraIso } from "../fechas";
 import { neutralizarFormula } from "../reglas/validaciones";
 import { ConflictoVersionError, type OpcionesListar, type RepositorioTabla } from "./tipos-repositorio";
 import type { TransporteSheets } from "./transporte-sheets";
+import { registrarAlta, registrarCambiosDeActualizacion, registrarConflictoVersion } from "./log-cambios";
 
 /** Vigencia de la caché de lecturas (sección 4 del PRD v2.1: "caché en memoria de corta vigencia, máximo 60 s"). */
 const VIGENCIA_CACHE_MS = 60_000;
@@ -86,6 +87,7 @@ export class RepositorioSheets<T extends { version: number; activo: boolean }> i
     const fila = objetoAFila(this.opciones.columnas, completo, neutralizarFormula);
     await this.opciones.transporte.agregarFila(this.opciones.hojaDatos, fila);
     this.invalidarCache();
+    await registrarAlta(this.opciones.nombreTabla, id, creadoPor, this.opciones.transporte);
     return completo;
   }
 
@@ -99,6 +101,7 @@ export class RepositorioSheets<T extends { version: number; activo: boolean }> i
 
     const actual = objetos[idx];
     if (actual.version !== versionEsperada) {
+      await registrarConflictoVersion(this.opciones.nombreTabla, id, modificadoPor, this.opciones.transporte);
       throw new ConflictoVersionError(this.opciones.nombreTabla, id, versionEsperada, actual.version);
     }
 
@@ -115,6 +118,14 @@ export class RepositorioSheets<T extends { version: number; activo: boolean }> i
     // +1 porque `leer()` no devuelve el encabezado (fila de datos 1 = índice 0).
     await this.opciones.transporte.actualizarFila(this.opciones.hojaDatos, idx + 1, filaNueva);
     this.invalidarCache();
+    await registrarCambiosDeActualizacion(
+      this.opciones.nombreTabla,
+      id,
+      modificadoPor,
+      actual as unknown as Record<string, unknown>,
+      actualizado as unknown as Record<string, unknown>,
+      this.opciones.transporte
+    );
     return actualizado;
   }
 
@@ -134,11 +145,13 @@ export class RepositorioSheets<T extends { version: number; activo: boolean }> i
     const objetos = this.aObjetos(filas);
     const ahora = ahoraIso();
 
-    const resueltos = entradas.map((entrada) => {
+    const resueltos: { idx: number; anterior: T; actualizado: T }[] = [];
+    for (const entrada of entradas) {
       const idx = objetos.findIndex((o) => (o[this.opciones.campoId] as unknown) === entrada.id);
       if (idx === -1) throw new Error(`No existe ${this.opciones.nombreTabla}/${entrada.id}.`);
       const actual = objetos[idx];
       if (actual.version !== entrada.versionEsperada) {
+        await registrarConflictoVersion(this.opciones.nombreTabla, entrada.id, modificadoPor, this.opciones.transporte);
         throw new ConflictoVersionError(this.opciones.nombreTabla, entrada.id, entrada.versionEsperada, actual.version);
       }
       const actualizado: T = {
@@ -149,8 +162,8 @@ export class RepositorioSheets<T extends { version: number; activo: boolean }> i
         modificadoEn: ahora,
         modificadoPor,
       } as T;
-      return { idx, actualizado };
-    });
+      resueltos.push({ idx, anterior: actual, actualizado });
+    }
 
     await this.opciones.transporte.actualizarMultiple(
       resueltos.map(({ idx, actualizado }) => ({
@@ -161,6 +174,16 @@ export class RepositorioSheets<T extends { version: number; activo: boolean }> i
     );
 
     this.invalidarCache();
+    for (const { anterior, actualizado } of resueltos) {
+      await registrarCambiosDeActualizacion(
+        this.opciones.nombreTabla,
+        (actualizado[this.opciones.campoId] as unknown) as string,
+        modificadoPor,
+        anterior as unknown as Record<string, unknown>,
+        actualizado as unknown as Record<string, unknown>,
+        this.opciones.transporte
+      );
+    }
     return resueltos.map((r) => r.actualizado);
   }
 }

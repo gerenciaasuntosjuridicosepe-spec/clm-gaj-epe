@@ -8,9 +8,11 @@
  */
 import { getRepositorioActuaciones } from "../datos/actuaciones";
 import { getRepositorioActuacionHitos } from "../datos/actuacion-hitos";
+import { getRepositorioActuacionPartes } from "../datos/actuacion-partes";
 import { marcarHitoCumplido } from "../reglas/rf20-cumplir-hito";
 import { calcularEstadoDerivado, esEstadoManual } from "../reglas/r14-estado-derivado";
 import { validarObligatoriosFormalizacion } from "../reglas/r4-obligatorios-formalizada";
+import { validarPartesMinimas } from "../reglas/r8-partes-minimas";
 import { CFG_HITOS_TIPO_SEED } from "../catalogos/hitos-seed";
 import { hoy } from "../fechas";
 import type { Actuacion, ActuacionHito } from "../tipos";
@@ -70,7 +72,9 @@ export async function cumplirHitoYRecalcularEstado(params: {
       .filter((h) => h.actuacionId === id)
       .map((h) => resultado.hitosActualizados.find((u) => u.hitoId === h.hitoId) ?? h);
     const cumplido = (hId: string) => hitosFinal.find((h) => h.hitoId === hId)?.estadoHito === "CUMPLIDO";
-    const { valida: puedeFormalizar } = validarObligatoriosFormalizacion(actuacion);
+    const partesDeLaActuacion = (await getRepositorioActuacionPartes().listar()).filter((p) => p.actuacionId === id);
+    const puedeFormalizar =
+      validarObligatoriosFormalizacion(actuacion).valida && validarPartesMinimas(actuacion.tipoActuacion, partesDeLaActuacion).valida;
 
     const nuevoEstado = calcularEstadoDerivado({
       tieneExpedienteAsignado: Boolean(actuacion.expedienteId),

@@ -209,3 +209,100 @@ describe("PATCH /api/alquileres/actuaciones/[id] — RF-29 (acto administrativo 
     expect(data.estadoActuacion).toBe("FORMALIZADA");
   });
 });
+
+describe("PATCH /api/alquileres/actuaciones/[id] — R8 (una ADENDA exige al menos un titular y un firmante para FORMALIZADA)", () => {
+  let actuacionId: string;
+  let version: number;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    const { POST: crearInmueble } = await import("@/app/api/alquileres/inmuebles/route");
+    const resInmueble = await crearInmueble(
+      new NextRequest("http://localhost/api/alquileres/inmuebles", { method: "POST", body: JSON.stringify({ domicilio: "Calle R8", localidadId: "LOC-TEST" }) })
+    );
+    const inmueble = await resInmueble.json();
+
+    const { POST: crearActuacion } = await import("@/app/api/alquileres/actuaciones/route");
+    const resContrato = await crearActuacion(
+      new NextRequest("http://localhost/api/alquileres/actuaciones", {
+        method: "POST",
+        body: JSON.stringify({ tipoActuacion: "CONTRATO", inmuebleId: inmueble.inmuebleId, sectorInteresadoAreaId: "AR-06" }),
+      })
+    );
+    const contrato = await resContrato.json();
+
+    const resAdenda = await crearActuacion(
+      new NextRequest("http://localhost/api/alquileres/actuaciones", {
+        method: "POST",
+        body: JSON.stringify({
+          tipoActuacion: "ADENDA",
+          inmuebleId: inmueble.inmuebleId,
+          sectorInteresadoAreaId: "AR-06",
+          actuacionAnteriorId: contrato.actuacionId,
+        }),
+      })
+    );
+    const adenda = await resAdenda.json();
+    actuacionId = adenda.actuacionId;
+    version = adenda.version;
+  });
+
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  const camposComunes = {
+    fechaInicio: "2026-01-01",
+    plazoMeses: 12,
+    canonInicial: 50_000,
+    condicionIvaCanon: "SIN_IVA",
+    destinoCategoria: "COMERCIAL",
+    destinoDescripcion: "Local",
+    firmanteEpeContactoId: "CON-0001",
+  };
+
+  it("sin partes cargadas, rechaza pasar la ADENDA a FORMALIZADA", async () => {
+    const { PATCH } = await import("./route");
+    const res = await PATCH(patchActuacion({ version, ...camposComunes, estadoActuacion: "FORMALIZADA" }), {
+      params: Promise.resolve({ id: actuacionId }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toMatch(/titular|firmante/);
+  });
+
+  it("con un titular y un firmante cargados (RF-10), permite pasar la ADENDA a FORMALIZADA", async () => {
+    const { POST: crearPersona } = await import("@/app/api/alquileres/personas/route");
+    const resPersona = await crearPersona(
+      new NextRequest("http://localhost/api/alquileres/personas", {
+        method: "POST",
+        body: JSON.stringify({ tipoPersona: "FISICA", apellidoNombreRazonSocial: "Pérez, Juan" }),
+      })
+    );
+    const persona = await resPersona.json();
+
+    const { POST: crearParte } = await import("@/app/api/alquileres/actuaciones/[id]/partes/route");
+    await crearParte(
+      new NextRequest("http://localhost/api/alquileres/actuaciones/x/partes", {
+        method: "POST",
+        body: JSON.stringify({ personaId: persona.personaId, rolParte: "TITULAR", orden: 1 }),
+      }),
+      { params: Promise.resolve({ id: actuacionId }) }
+    );
+    await crearParte(
+      new NextRequest("http://localhost/api/alquileres/actuaciones/x/partes", {
+        method: "POST",
+        body: JSON.stringify({ personaId: persona.personaId, rolParte: "FIRMANTE", orden: 2 }),
+      }),
+      { params: Promise.resolve({ id: actuacionId }) }
+    );
+
+    const { PATCH } = await import("./route");
+    const res = await PATCH(patchActuacion({ version, ...camposComunes, estadoActuacion: "FORMALIZADA" }), {
+      params: Promise.resolve({ id: actuacionId }),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.estadoActuacion).toBe("FORMALIZADA");
+  });
+});

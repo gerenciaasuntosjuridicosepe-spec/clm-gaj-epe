@@ -3,8 +3,10 @@ import { esRespuestaError, requerirAccionAlquileres } from "@/lib/alquileres/aut
 import { MATRIZ_GESTION } from "@/lib/alquileres/permisos";
 import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioActosAdmin } from "@/lib/alquileres/datos/actos-admin";
+import { getRepositorioActuacionPartes } from "@/lib/alquileres/datos/actuacion-partes";
 import { fechaFinPorDefecto, validarFechaFinManual } from "@/lib/alquileres/reglas/r5-fecha-fin";
 import { validarObligatoriosFormalizacion } from "@/lib/alquileres/reglas/r4-obligatorios-formalizada";
+import { validarPartesMinimas } from "@/lib/alquileres/reglas/r8-partes-minimas";
 import { esConflictoVersionError } from "@/lib/alquileres/repositorio/tipos-repositorio";
 import type { Actuacion } from "@/lib/alquileres/tipos";
 
@@ -102,6 +104,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         { error: `No se puede formalizar — falta: ${validacion.camposFaltantes.join(", ")}.` },
         { status: 400 }
       );
+    }
+
+    // R8 (vía RF-10): ADENDA necesita al menos un titular y un firmante — LEGITIMO_ABONO no tiene partes propias (la regla lo exime).
+    const partes = (await getRepositorioActuacionPartes().listar()).filter((p) => p.actuacionId === id);
+    const validacionPartes = validarPartesMinimas(actuacion.tipoActuacion, partes);
+    if (!validacionPartes.valida) {
+      return NextResponse.json({ error: validacionPartes.error }, { status: 400 });
     }
   }
 
