@@ -16,7 +16,7 @@ Documentos de referencia: `docs/DECISIONES.md` (por qué se decidió cada cosa),
 | Fase 0 (correcciones F0-1 a F0-7 + runbooks a-d) | **Cerrada** — 2026-09-30, ver detalle abajo |
 | Fase 1 (cimientos del módulo) | **Cerrada** — 2026-10-01, ver "Fase 1 — cierre" más abajo |
 | Fase 2 (hitos, alertas, dashboard, calendario) | **Cerrada** — 2026-10-02, ver "Fase 2 — cierre" más abajo |
-| Fase 3 (comunicaciones y documentos) | **Cerrada en lo posible sin Google real** — 2026-10-02; falta solo la revisión adversarial formal y lo que requiere Google real (ver PENDIENTES-HUMANOS.md puntos 10-11) |
+| Fase 3 (comunicaciones y documentos) | **Cerrada en lo posible sin Google real** — 2026-10-02, ver "Fase 3 — cierre" más abajo; lo que requiere Google real queda en PENDIENTES-HUMANOS.md puntos 10-11 |
 | Fase 4 (reportes y operación) | No iniciada |
 | Fase 5/6 (piloto, migración) | Fuera de alcance de este desarrollo — requieren dictamen GAJ y datos reales (ver PENDIENTES-HUMANOS.md) |
 
@@ -66,17 +66,28 @@ Cerrada el 2026-10-02. Hitos, alertas, dashboard, calendario (ver la bitácora d
 
 **Limitaciones aceptadas, documentadas, no bloqueantes:** `[id]/hitos/route.ts` todavía no captura `ConflictoVersionError` (responde 500 en vez de 409 ante un conflicto de versión en esa ruta puntual); R17/R18 (cambio de tipo de actuación, RF-14) son reglas puras ya probadas pero sin ruta que las invoque todavía; RF-12 solo tiene la API, no una pantalla de edición propia.
 
+## Fase 3 — cierre
+
+Cerrada el 2026-10-02, en lo que es posible sin Google real (ver `docs/TRAZABILIDAD.md` para el mapeo requisito → código → prueba):
+
+- RF-22/23/24 (comunicaciones): borrador de AVISO/REITERACION con destinatarios armados desde CONTACTOS_EPE vigentes del área (RF-22); "Marcar como enviado" (M16/T23) recién ahí cumple el hito; CARTA_DOCUMENTO se registra directo, sin borrador.
+- RF-28 (documentos): adjuntar un enlace validado (`drive.google.com`/`docs.google.com`) — A6 (formalizada sin escaneado) funciona de verdad por primera vez, con datos reales pasados al dashboard/alertas.
+- RF-29 (actos administrativos): un LEGITIMO_ABONO no pasa a FORMALIZADA sin al menos uno — wiring agregado a `[id]/route.ts` (que de paso ganó la capacidad de llevar ADENDA/LEGITIMO_ABONO a FORMALIZADA por edición directa del estado, algo que antes no existía en absoluto).
+- RF-33 parcial: alta mínima de Áreas y Contactos EPE, necesaria para que RF-22 tenga de dónde sacar destinatarios.
+- RF-25/26/27 parcial: lógica pura de armado de los 10 valores de `ETIQUETAS_PLANTILLA` (RF-26 bloque repetible de locadores, RF-27 `SECTOR_EPE`), probada, sin la llamada real a Google Docs (eso y la redacción legal de IVA/actualización quedan en `docs/PENDIENTES-HUMANOS.md`, puntos 10 y 11 — deliberadamente no se construyó una ruta que simule "generar" un documento, ver `docs/DECISIONES.md`).
+- Revisión adversarial de cierre: encontró y corrigió un hueco real en `[id]/comunicaciones/route.ts` (se podían preparar bordadores duplicados o comunicaciones para un hito ya cumplido) y otro en `[id]/hitos/route.ts` (no capturaba `ConflictoVersionError`, daba 500 en vez de 409) — ambos con pruebas nuevas. Se verificó además que el esquema de las 5 tablas nuevas (AREAS, CONTACTOS_EPE, COMUNICACIONES, DOCUMENTOS, ACTOS_ADMIN) ya estaba completo en `esquema.ts` desde Fase 1 y que el script de aprovisionamiento (T21, `scripts/setup-sheet-alquileres.test.ts`) las sigue cubriendo sin cambios, por derivar todo de la misma fuente única.
+
+**Limitaciones aceptadas, documentadas, no bloqueantes:** sin UI propia para comunicaciones/documentos/actos (solo API, dentro de la ficha de la actuación que todavía no existe); RF-12 sin pantalla de edición propia; R17/R18 (RF-14) sin ruta que las invoque.
+
 ## Tarea actual
 
-Fase 3 — comunicaciones y documentos, **cerrada en lo que es posible sin Google real**. Hecho: RF-22/23/24 (comunicaciones), RF-28 (documentos), RF-29 (actos administrativos) — todo con ruta de API y verificado en vivo de punta a punta — y RF-25/26/27 en su parte de lógica pura (armado de los 10 valores de `ETIQUETAS_PLANTILLA`, sin la llamada real a Docs, que queda en `docs/PENDIENTES-HUMANOS.md`). Lo único explícitamente fuera de alcance de esta fase por los límites duros del encargo: la generación real del documento (necesita la API de Google Docs) y la redacción legal de IVA/actualización (contenido legal que no se inventa).
+Fase 4 — reportes y operación. No iniciada todavía.
 
 ## Próximas tareas (orden previsto)
 
-1. Revisión adversarial de cierre de Fase 3 (mismo proceso que Fases 1 y 2) antes de pasar a Fase 4.
-2. R17/R18 wiring (diferido de Fase 2): aplicar `aplicarCambioTipoActuacion` (RF-14) y las condiciones automáticas de NO_APLICA de R18.
-3. UI: pantallas propias para comunicaciones/documentos/actos dentro de la ficha de la actuación (hoy solo hay API — RF-16 "todos los bloques visibles sin cambiar de página" queda pendiente de una ficha de detalle real).
-4. Completar RF-12 con una pantalla de edición propia cuando exista esa ficha de detalle.
-5. Fase 4 (reportes y operación), después de cerrar Fase 3.
+1. Releer la sección 7.5 del PRD v1 y lo que corresponda de v2.1 sobre reportes (RP-01 a RP-12), exportaciones, impresión a PDF, respaldo y pantalla de errores, antes de escribir código.
+2. R17/R18 wiring (diferido de Fases 2 y 3): aplicar `aplicarCambioTipoActuacion` (RF-14) y las condiciones automáticas de NO_APLICA de R18 — si no entra naturalmente en Fase 4, queda para backlog final.
+3. UI: pantallas propias para comunicaciones/documentos/actos dentro de la ficha de la actuación (RF-16) y edición de RF-12 — si no entran en Fase 4, van al informe final como trabajo de UI pendiente.
 
 ## Resultado de las últimas pruebas (2026-10-02)
 
