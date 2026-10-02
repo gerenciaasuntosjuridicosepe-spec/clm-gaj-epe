@@ -45,6 +45,8 @@ const ICONS_ALQUILERES: Record<NavItemAlquileres["icon"], React.ComponentType<{ 
   expedientes: Folder,
   actuaciones: FileSignature,
   personas: UserRound,
+  calendario: CalendarDays,
+  alertas: BellRing,
 };
 
 function EnlaceNav({

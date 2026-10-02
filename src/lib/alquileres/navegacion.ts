@@ -14,7 +14,7 @@
 export interface NavItemAlquileres {
   href: string;
   label: string;
-  icon: "dashboard" | "inmuebles" | "expedientes" | "actuaciones" | "personas";
+  icon: "dashboard" | "inmuebles" | "expedientes" | "actuaciones" | "personas" | "calendario" | "alertas";
   /** Si se informa, el ítem solo se muestra si `filtro(rol)` da true (ej. Personas oculto para LECTOR). */
   filtro?: (rol: import("./tipos").RolAlquileresId) => boolean;
 }
@@ -34,6 +34,8 @@ export const NAV_GROUPS_ALQUILERES: NavGroupAlquileres[] = [
       { href: "/alquileres/actuaciones", label: "Actuaciones", icon: "actuaciones" },
       // Personas: LECTOR no tiene ni "leer" en MATRIZ_PERSONAS (dato personal) — se oculta el ítem para ese rol.
       { href: "/alquileres/personas", label: "Personas", icon: "personas", filtro: (rol) => rol !== "LECTOR" },
+      { href: "/alquileres/calendario", label: "Calendario", icon: "calendario" },
+      { href: "/alquileres/alertas", label: "Alertas", icon: "alertas" },
     ],
   },
 ];

@@ -55,16 +55,16 @@ Cerrada el 2026-10-01. Se construyeron los cimientos completos del módulo (ver 
 
 ## Tarea actual
 
-Fase 2 — hitos, alertas y dashboard. Hecho hasta ahora: RF-19, RF-20, RF-21 (hitos), el Dashboard (RF-40/sección 8 del PRD v1) y RF-12 parcial (formalización guiada de una actuación: carga de los campos que exige R4', con R5 para la fecha de fin y T20 para la concurrencia) — todo verificado en vivo de punta a punta, incluyendo el camino completo alta → formalización → cumplimiento de hitos → estado derivado (R14) → reflejo correcto en el dashboard.
+Fase 2 — hitos, alertas y dashboard: **cerrada en lo funcional** (falta la revisión adversarial formal de cierre, ver abajo). Hecho: RF-19, RF-20, RF-21 (hitos), el Dashboard (RF-40/sección 8 del PRD v1), RF-12 parcial (formalización guiada), el Calendario propio del módulo (RF-40) y la pantalla de Alertas (filtrable, A1/A4/A5/A6) — todo verificado en vivo de punta a punta.
 
 ## Próximas tareas (orden previsto)
 
-1. R17/R18 wiring: aplicar `aplicarCambioTipoActuacion` cuando se cambia el tipo de una actuación (RF-14, todavía no hay ruta para esto), y las condiciones automáticas de NO_APLICA de R18 (H-02 si el sector no es SUCURSAL, H-03 si H-02/H-21 ya cumplidos, H-04 si hay PROPUESTA_LOCADOR) — hoy son funciones puras probadas pero nadie las invoca todavía desde una ruta.
-2. Calendario propio del módulo (RF-40, la parte que falta): vencimientos efectivos e hitos previstos en una vista de calendario (puede reutilizar `calendario-mes.tsx` del CLM con un adaptador, sección 4 del PRD v2.1, punto "Qué se reutiliza" — o construir uno propio si el tipo de evento actual lo impide).
-3. Alertas (RF del v1 sección 7.1 adaptado): pantalla propia, reutilizando las funciones de `reglas/alertas.ts` (la cola de trabajo del dashboard ya las usa; esta pantalla sería una vista más detallada/filtrable de lo mismo).
-4. Completar RF-12: hoy `[id]/route.ts` solo cubre la carga de los campos de formalización (R4'/R5/T20); falta la UI de edición en la ficha de la actuación (hoy la ficha de detalle, más allá del alta rápida, todavía no tiene pantalla propia) y, si corresponde, un endpoint equivalente para LEGITIMO_ABONO (que no pasa por R5 porque no tiene `plazo_meses`).
-5. Nota menor encontrada durante la verificación en vivo de RF-12 (no bloqueante, documentada acá para no perderla): `[id]/hitos/route.ts` llama a `actualizar()` sobre Actuaciones e Hitos sin capturar `ConflictoVersionError` — hoy un conflicto de versión en esa ruta responde 500 en vez de 409. No se tocó en esta tarea para no mezclar alcance; usar `esConflictoVersionError()` (ver más abajo) si se corrige.
-6. Cerrar Fase 2: revisión adversarial, `docs/TRAZABILIDAD.md` al día con RF-12/Dashboard, y recién ahí pasar a Fase 3.
+1. Revisión adversarial de cierre de Fase 2 (mismo proceso que se hizo al cerrar Fase 1): releer todo lo construido en esta fase buscando huecos, antes de pasar a Fase 3.
+2. R17/R18 wiring: aplicar `aplicarCambioTipoActuacion` cuando se cambia el tipo de una actuación (RF-14, todavía no hay ruta para esto), y las condiciones automáticas de NO_APLICA de R18 (H-02 si el sector no es SUCURSAL, H-03 si H-02/H-21 ya cumplidos, H-04 si hay PROPUESTA_LOCADOR) — hoy son funciones puras probadas pero nadie las invoca todavía desde una ruta. (Puede hacerse en Fase 2 o diferirse a Fase 3 — a decidir en la revisión adversarial.)
+3. Completar RF-12: hoy `[id]/route.ts` solo cubre la carga de los campos de formalización (R4'/R5/T20) vía API; falta la UI de edición en la ficha de la actuación (hoy la ficha de detalle, más allá del alta rápida, todavía no tiene pantalla propia) y, si corresponde, un endpoint equivalente para LEGITIMO_ABONO (que no pasa por R5 porque no tiene `plazo_meses`).
+4. Nota menor encontrada durante la verificación en vivo de RF-12 (no bloqueante, documentada acá para no perderla): `[id]/hitos/route.ts` llama a `actualizar()` sobre Actuaciones e Hitos sin capturar `ConflictoVersionError` — hoy un conflicto de versión en esa ruta responde 500 en vez de 409. No se tocó en esta tarea para no mezclar alcance; usar `esConflictoVersionError()` (ver más abajo) si se corrige.
+5. Fase 3 (comunicaciones y documentos): plantillas, generación de documentos, ABM de Documentos (que activa A6 de verdad, hoy siempre en 0 porque no hay documentos cargables).
+6. Fase 4 (reportes y operación).
 
 ## Resultado de las últimas pruebas (2026-10-02)
 
@@ -72,11 +72,21 @@ Fase 2 — hitos, alertas y dashboard. Hecho hasta ahora: RF-19, RF-20, RF-21 (h
 > clm-gaj-epe@0.1.0 test
 > vitest run --run
 
- Test Files  44 passed (44)
-      Tests  352 passed (352)
+ Test Files  45 passed (45)
+      Tests  358 passed (358)
 ```
 
-`npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK — genera, entre otras, las 4 páginas (`/alquileres/{inmuebles,expedientes,personas,actuaciones}`), `/alquileres` (dashboard), las 4 rutas de API raíz, `/api/alquileres/actuaciones/[id]`, `/api/alquileres/actuaciones/[id]/hitos`, más `/sin-acceso` y todas las rutas del CLM sin cambios.
+`npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK — genera, entre otras, las 4 páginas de ABM (`/alquileres/{inmuebles,expedientes,personas,actuaciones}`), `/alquileres` (dashboard), `/alquileres/alertas`, `/alquileres/calendario`, las 4 rutas de API raíz, `/api/alquileres/actuaciones/[id]`, `/api/alquileres/actuaciones/[id]/hitos`, más `/sin-acceso` y todas las rutas del CLM sin cambios.
+
+### 2026-10-02 — Calendario (RF-40) y pantalla de Alertas (cierre funcional de Fase 2)
+
+- `reglas/calendario.ts` (`construirEventosCalendarioAlquileres`): agregación pura, mismo espíritu que `dashboard.ts` — arma una lista de eventos (`vencimiento` desde R15/C3, con su nivel de semáforo; `hito` desde cualquier `ActuacionHito` PENDIENTE con `fechaPrevista`) a partir de reglas ya probadas, sin inventar ninguna cuenta nueva. Se exportó `esTerminal` de `reglas/alertas.ts` (antes privada) para no duplicar ese criterio. 6 pruebas en `reglas/calendario.test.ts`.
+- `src/components/domain/calendario-mes-alquileres.tsx`: vista mensual, visualmente igual a `calendario-mes.tsx` del CLM (misma grilla, mismos estilos), pero con el modelo de eventos propio de Alquileres. **Decisión** (ver `docs/DECISIONES.md`, 2026-10-02): no se reutilizó el componente del CLM directamente porque su tipo `EventoCalendario` está atado al modelo de `Contrato` (campos `tipoContrato`/`gerenciaResponsable`, link fijo a `/contratos/...`) — D2/D5 prohíben que Alquileres extienda ese modelo. Sí se reutilizan, por import directo y sin modificar el archivo, las funciones de matemática de grilla que no tocan el modelo de Contrato (`construirGrillaMes`, `aFechaISO`, `DIAS_SEMANA`, `MESES` de `src/lib/calendario.ts`) — esto es exactamente "el componente visual con un adaptador" que permite el PRD v2.1 (sección 4).
+- `src/app/alquileres/calendario/page.tsx` + `alquileres-calendario-client.tsx`: página nueva, mismo patrón que el dashboard (Server Component calcula con datos reales, Client Component solo pinta).
+- `src/app/alquileres/alertas/page.tsx` + `alquileres-alertas-client.tsx`: pantalla filtrable (botones por código de alerta + contador) sobre la `colaDeTrabajo` que ya calcula `calcularDashboard` — no se agregó ninguna cuenta nueva, es una vista más detallada de lo mismo que ya muestra el dashboard (como estaba previsto). Cubre A1/A4/A5/A6; A2/A3 (necesitan datos de Partes/Propuesta del locador, sin ABM todavía) y A7/A8 (Administración, con pantalla propia en Fase 3/4) quedan fuera, documentado en el propio código y en `docs/TRAZABILIDAD.md`.
+- Menú (`navegacion.ts`/`sidebar.tsx`): se agregan los ítems "Calendario" y "Alertas" (reutilizando los íconos `CalendarDays`/`BellRing` que el sidebar ya importaba para el CLM) — el grupo "Alquileres" queda con sus 7 ítems de Fase 1-2 (faltan Reportes y Administración, Fase 3/4).
+- **Verificado en vivo** (`npm run dev`): alta de inmueble + CONTRATO, formalización con `fecha_fin` 2028-12-31 (R5) → `/alquileres/calendario` muestra el evento de vencimiento (nivel verde, ~2 años) en la fecha correcta. Cumplida H-01 con fecha pasada (2026-01-05) → R13 calcula `fecha_prevista` pasada para H-02/H-21/H-03 → `/alquileres/alertas` muestra las 3 alertas A4 correspondientes, filtrables por botón, y `/alquileres/calendario` también muestra esos 3 hitos como eventos en sus fechas. Sidebar muestra los 7 ítems del menú de Alquileres. Sin errores en el log del servidor en ninguna de las dos pantallas.
+- `npm test`: 358/358 OK (352 → 358: +6 de `reglas/calendario.test.ts`). `npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK (agrega `/alquileres/alertas` y `/alquileres/calendario`).
 
 ### 2026-10-02 — RF-12 (parcial: formalización guiada) + bug real encontrado y corregido (identidad de clase entre "layers")
 

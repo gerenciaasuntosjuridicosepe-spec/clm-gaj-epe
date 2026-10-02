@@ -12,7 +12,8 @@ function faltanNMesesOMenos(hoy: string, fechaObjetivo: string, meses: number): 
   return hoy >= sumarMeses(fechaObjetivo, -meses);
 }
 
-function esTerminal(estado: Actuacion["estadoActuacion"]): boolean {
+/** Exportada (además de usarse acá adentro) porque `reglas/calendario.ts` necesita el mismo criterio para no ofrecer un evento de vencimiento de un CONTRATO ya cerrado/desistido/anulado/no renovado. */
+export function esTerminal(estado: Actuacion["estadoActuacion"]): boolean {
   return estado === "DESISTIDA" || estado === "ANULADA" || estado === "NO_RENOVADO" || estado === "CERRADA";
 }
 
