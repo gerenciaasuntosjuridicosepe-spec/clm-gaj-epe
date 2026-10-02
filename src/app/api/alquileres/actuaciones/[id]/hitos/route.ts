@@ -4,10 +4,13 @@ import { MATRIZ_HITOS } from "@/lib/alquileres/permisos";
 import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioActuacionHitos } from "@/lib/alquileres/datos/actuacion-hitos";
 import { marcarHitoCumplido } from "@/lib/alquileres/reglas/rf20-cumplir-hito";
+import { marcarHitoNoAplica, reprogramarHito } from "@/lib/alquileres/reglas/rf21-reprogramar-hito";
 import { calcularEstadoDerivado, esEstadoManual } from "@/lib/alquileres/reglas/r14-estado-derivado";
 import { validarObligatoriosFormalizacion } from "@/lib/alquileres/reglas/r4-obligatorios-formalizada";
 import { CFG_HITOS_TIPO_SEED } from "@/lib/alquileres/catalogos/hitos-seed";
 import { hoy } from "@/lib/alquileres/fechas";
+
+type AccionHito = "cumplir" | "reprogramar" | "no_aplica";
 
 /** RF-16 (parcial): hitos de una actuación puntual. */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -21,19 +24,27 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 /**
- * RF-20 — Registrar el cumplimiento de un hito: fecha hoy o anterior,
- * recalcula fechas dependientes (R13, vía `marcarHitoCumplido`) y el
- * estado derivado de la actuación (R14) si corresponde.
+ * RF-20/RF-21 — Registrar el cumplimiento de un hito (acción "cumplir",
+ * default), reprogramarlo (acción "reprogramar", exige motivo y nueva
+ * fecha prevista — R13: a partir de ahí no se recalcula solo) o marcarlo
+ * NO_APLICA (acción "no_aplica", exige motivo).
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const sesion = await requerirAccionAlquileres("editar", MATRIZ_HITOS);
   if (esRespuestaError(sesion)) return sesion;
 
   const { id } = await params;
-  const body = (await req.json()) as { hitoId?: string; fechaCumplimiento?: string; referencia?: string };
+  const body = (await req.json()) as {
+    hitoId?: string;
+    fechaCumplimiento?: string;
+    referencia?: string;
+    accion?: AccionHito;
+    nuevaFechaPrevista?: string;
+    motivo?: string;
+  };
 
-  if (!body.hitoId || !body.fechaCumplimiento) {
-    return NextResponse.json({ error: "hitoId y fechaCumplimiento son obligatorios." }, { status: 400 });
+  if (!body.hitoId) {
+    return NextResponse.json({ error: "hitoId es obligatorio." }, { status: 400 });
   }
 
   const actuacion = await getRepositorioActuaciones().obtener(id);
@@ -44,6 +55,43 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const todosLosHitos = await getRepositorioActuacionHitos().listar();
   const hitosDeLaActuacion = todosLosHitos.filter((h) => h.actuacionId === id);
   const cfgDelTipo = CFG_HITOS_TIPO_SEED.filter((c) => c.tipoActuacion === actuacion.tipoActuacion);
+
+  const accion: AccionHito = body.accion ?? "cumplir";
+
+  if (accion === "reprogramar" || accion === "no_aplica") {
+    const hitoActual = hitosDeLaActuacion.find((h) => h.hitoId === body.hitoId);
+    if (!hitoActual) {
+      return NextResponse.json({ error: `No existe el hito ${body.hitoId} en esta actuación.` }, { status: 404 });
+    }
+
+    const resultadoAccion =
+      accion === "reprogramar"
+        ? reprogramarHito(hitoActual, body.nuevaFechaPrevista ?? "", body.motivo ?? "")
+        : marcarHitoNoAplica(hitoActual, body.motivo ?? "");
+
+    if (!resultadoAccion.valido || !resultadoAccion.hitoActualizado) {
+      return NextResponse.json({ error: resultadoAccion.error }, { status: 400 });
+    }
+
+    const actualizado = await getRepositorioActuacionHitos().actualizar(
+      hitoActual.actuacionHitoId,
+      {
+        estadoHito: resultadoAccion.hitoActualizado.estadoHito,
+        fechaPrevista: resultadoAccion.hitoActualizado.fechaPrevista,
+        reprogramada: resultadoAccion.hitoActualizado.reprogramada,
+        observaciones: resultadoAccion.hitoActualizado.observaciones,
+      },
+      hitoActual.version,
+      sesion.email
+    );
+
+    return NextResponse.json({ hitos: [actualizado], actuacion });
+  }
+
+  // accion === "cumplir" (RF-20)
+  if (!body.fechaCumplimiento) {
+    return NextResponse.json({ error: "fechaCumplimiento es obligatoria para cumplir un hito." }, { status: 400 });
+  }
 
   const resultado = marcarHitoCumplido({
     hitos: hitosDeLaActuacion,

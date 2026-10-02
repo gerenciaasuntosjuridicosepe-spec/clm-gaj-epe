@@ -55,26 +55,27 @@ Cerrada el 2026-10-01. Se construyeron los cimientos completos del módulo (ver 
 
 ## Tarea actual
 
-Fase 2 — hitos, alertas y dashboard. Hecho hasta ahora: RF-19 (generación automática de hitos al crear un CONTRATO) y RF-20 (cumplimiento de un hito, con recálculo de R13/R14), ambos verificados en vivo de punta a punta.
+Fase 2 — hitos, alertas y dashboard. Hecho hasta ahora: RF-19 (generación automática de hitos al crear un CONTRATO), RF-20 (cumplimiento de un hito, con recálculo de R13/R14) y RF-21 (reprogramar/NO_APLICA) — RF-19/RF-20 verificados en vivo de punta a punta, RF-21 verificado por las pruebas de la ruta.
 
 ## Próximas tareas (orden previsto)
 
-1. RF-21: reprogramar un hito (`reprogramada = TRUE`, pide motivo, R13 deja de recalcularlo — la regla pura de R13 ya respeta `reprogramada`, falta la ruta/UI) y marcar NO_APLICA (con motivo).
-2. R17/R18 wiring: aplicar `aplicarCambioTipoActuacion` cuando se cambia el tipo de una actuación (RF-14, todavía no hay ruta para esto), y las condiciones automáticas de NO_APLICA de R18 (H-02 si el sector no es SUCURSAL, H-03 si H-02/H-21 ya cumplidos, H-04 si hay PROPUESTA_LOCADOR) — hoy son funciones puras probadas pero nadie las invoca todavía desde una ruta.
-3. Dashboard (sección 8 del PRD v1): tarjetas de indicadores, cola de trabajo con las alertas A1-A8 ya implementadas como reglas puras, gráficos (Recharts, ya instalado).
-4. Calendario propio del módulo (RF-40): vencimientos efectivos e hitos previstos.
-5. Alertas (RF del v1 sección 7.1 adaptado): pantalla propia, reutilizando las funciones de `reglas/alertas.ts`.
-6. Cerrar Fase 2: verificar que T2-T10 (ya reproducidos en las pruebas de reglas) se vean también reflejados correctamente end-to-end en el dashboard con datos de prueba ficticios, revisión adversarial, `docs/TRAZABILIDAD.md` al día.
+1. R17/R18 wiring: aplicar `aplicarCambioTipoActuacion` cuando se cambia el tipo de una actuación (RF-14, todavía no hay ruta para esto), y las condiciones automáticas de NO_APLICA de R18 (H-02 si el sector no es SUCURSAL, H-03 si H-02/H-21 ya cumplidos, H-04 si hay PROPUESTA_LOCADOR) — hoy son funciones puras probadas pero nadie las invoca todavía desde una ruta.
+2. Dashboard (sección 8 del PRD v1): tarjetas de indicadores, cola de trabajo con las alertas A1-A8 ya implementadas como reglas puras, gráficos (Recharts, ya instalado).
+3. Calendario propio del módulo (RF-40): vencimientos efectivos e hitos previstos.
+4. Alertas (RF del v1 sección 7.1 adaptado): pantalla propia, reutilizando las funciones de `reglas/alertas.ts`.
+5. Cerrar Fase 2: verificar que T2-T10 (ya reproducidos en las pruebas de reglas) se vean también reflejados correctamente end-to-end en el dashboard con datos de prueba ficticios, revisión adversarial, `docs/TRAZABILIDAD.md` al día.
 
-## Resultado de las últimas pruebas (2026-10-01)
+## Resultado de las últimas pruebas (2026-10-02)
 
 ```
 > clm-gaj-epe@0.1.0 test
 > vitest run
 
- Test Files  40 passed (40)
-      Tests  327 passed (327)
+ Test Files  42 passed (42)
+      Tests  339 passed (339)
 ```
+
+`npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK.
 
 `npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK — genera, entre otras, las 4 páginas (`/alquileres/{inmuebles,expedientes,personas,actuaciones}`), las 4 rutas de API raíz y `/api/alquileres/actuaciones/[id]/hitos`, más `/sin-acceso` y todas las rutas del CLM sin cambios.
 
@@ -330,3 +331,10 @@ Route (app)
 - Rutas: `POST /api/alquileres/actuaciones` ahora genera los hitos automáticamente tras crear un CONTRATO (config activa: `CFG_HITOS_TIPO_SEED`, estático por ahora — RF-34/Administración con catálogo editable en runtime queda para Fase 4; feriados: lista vacía, sin RF-36/pantalla de carga todavía — R13 ya contempla ese caso con "cómputo aproximado", documentado, no inventado). `GET/PATCH /api/alquileres/actuaciones/[id]/hitos` (nueva): lista hitos de una actuación y registra el cumplimiento de uno, recalculando además el estado derivado de la actuación (R14) cuando corresponde (salvo que esté en un estado manual — DESISTIDA/NO_RENOVADO/ANULADA).
 - **Verificado en vivo de punta a punta** (`npm run dev`): se creó un inmueble y una actuación CONTRATO (primera del inmueble) → se generaron 8 hitos, los `ANTES_FIN_CONTRATO` sin `fecha_prevista` (sin predecesor, correcto) → se cumplió H-01 con fecha `2026-09-15` → el servidor recalculó H-02/H-21 a `2026-09-22` (5 días hábiles después) y H-03 a `2026-09-24` (7 días hábiles después), y la actuación pasó automáticamente de `PENDIENTE_AVISO` a `AVISO_ENVIADO` (R14) — todo en una sola llamada `PATCH`, sin intervención manual sobre el estado. Sin errores en el log del servidor.
 - `npm test`: 327/327 OK. `npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK (agrega `/api/alquileres/actuaciones/[id]/hitos`).
+
+### 2026-10-02 — RF-21: reprogramar un hito y marcar NO_APLICA
+
+- `reglas/rf21-reprogramar-hito.ts`: `reprogramarHito` (exige motivo y nueva fecha prevista; marca `reprogramada = TRUE`, con lo que R13 deja de recalcularlo solo) y `marcarHitoNoAplica` (exige motivo). Ambas rechazan actuar sobre un hito ya `CUMPLIDO`. 7 pruebas.
+- `src/app/api/alquileres/actuaciones/[id]/hitos/route.ts`: el `PATCH` ahora acepta `accion: "cumplir" | "reprogramar" | "no_aplica"` (default `"cumplir"`, compatible con lo que ya usaba RF-20). Reprogramar/NO_APLICA actualizan un solo hito con control de versión (T20); no disparan el recálculo de R14 (ninguna de las dos acciones marca un hito `CUMPLIDO`, que es lo único que R14 mira). 5 pruebas nuevas de la ruta (`route.test.ts`), incluidos los dos rechazos por falta de motivo.
+- No se verificó esta tanda contra `npm run dev` en vivo (ya se había verificado el mecanismo de persistencia/versión con RF-19/RF-20 en la tanda anterior, y las pruebas de la ruta cubren el mismo camino de código) — si en una revisión posterior aparece algo raro específico de estas dos acciones, revisar primero en vivo antes de asumir que es un problema de las pruebas.
+- `npm test`: 339/339 OK. `npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK.
