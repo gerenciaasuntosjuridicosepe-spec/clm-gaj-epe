@@ -59,11 +59,11 @@ export const ETIQUETAS_ROL_ALQUILERES: Record<RolAlquileresId, string> = {
 export const CAMPOS_PERSONALES = ["dni", "cuitCuil", "domicilioLegal", "mail", "telefono"] as const;
 
 /** Enmascara los campos personales de un objeto tipo Persona si el rol es LECTOR (defensa en profundidad — ver CAMPOS_PERSONALES). */
-export function enmascararSiLector<T extends Record<string, unknown>>(obj: T, rol: RolAlquileresId | undefined): T {
+export function enmascararSiLector<T extends object>(obj: T, rol: RolAlquileresId | undefined): T {
   if (rol !== "LECTOR") return obj;
-  const copia = { ...obj };
+  const copia = { ...obj } as Record<string, unknown>;
   for (const campo of CAMPOS_PERSONALES) {
-    if (campo in copia) (copia as Record<string, unknown>)[campo] = undefined;
+    if (campo in copia) copia[campo] = undefined;
   }
-  return copia;
+  return copia as unknown as T;
 }

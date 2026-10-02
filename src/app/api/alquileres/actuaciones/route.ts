@@ -1,0 +1,76 @@
+import { NextRequest, NextResponse } from "next/server";
+import { esRespuestaError, requerirAccionAlquileres } from "@/lib/alquileres/auth-guard";
+import { MATRIZ_GESTION } from "@/lib/alquileres/permisos";
+import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
+import { getRepositorioInmuebles } from "@/lib/alquileres/datos/inmuebles";
+import { validarCadenaActuacion } from "@/lib/alquileres/reglas/r3-cadena-actuaciones";
+import type { Actuacion } from "@/lib/alquileres/tipos";
+
+/**
+ * RF-11 — alta rápida de una actuación con pocos datos (tipo, inmueble,
+ * sector, estado); el resto se exige más adelante, al formalizar (R4',
+ * RF-12 — todavía no implementado, queda para cuando se construya el
+ * flujo de formalización guiada junto con hitos/dashboard en Fase 2).
+ */
+export async function GET() {
+  const sesion = await requerirAccionAlquileres("leer", MATRIZ_GESTION);
+  if (esRespuestaError(sesion)) return sesion;
+
+  const actuaciones = await getRepositorioActuaciones().listar();
+  return NextResponse.json(actuaciones);
+}
+
+export async function POST(req: NextRequest) {
+  const sesion = await requerirAccionAlquileres("crear", MATRIZ_GESTION);
+  if (esRespuestaError(sesion)) return sesion;
+
+  const body = (await req.json()) as Partial<Actuacion>;
+
+  if (!body.tipoActuacion) {
+    return NextResponse.json({ error: "El tipo de actuación es obligatorio." }, { status: 400 });
+  }
+  if (!body.inmuebleId?.trim()) {
+    return NextResponse.json({ error: "El inmueble es obligatorio." }, { status: 400 });
+  }
+  if (!body.sectorInteresadoAreaId?.trim()) {
+    return NextResponse.json({ error: "El sector interesado es obligatorio (define destinatarios del aviso)." }, { status: 400 });
+  }
+
+  const inmueble = await getRepositorioInmuebles().obtener(body.inmuebleId.trim());
+  if (!inmueble) {
+    return NextResponse.json({ error: "El inmueble indicado no existe." }, { status: 400 });
+  }
+
+  const todas = await getRepositorioActuaciones().listar({ soloActivos: false });
+
+  // R3': si se informa una actuación anterior, validar la cadena antes de crear.
+  if (body.actuacionAnteriorId) {
+    const simulada = {
+      actuacionId: "(nueva)",
+      tipoActuacion: body.tipoActuacion,
+      inmuebleId: body.inmuebleId.trim(),
+      actuacionAnteriorId: body.actuacionAnteriorId,
+    } as Actuacion;
+    const validacion = validarCadenaActuacion(simulada, [...todas, simulada]);
+    if (!validacion.valida) {
+      return NextResponse.json({ error: validacion.error }, { status: 400 });
+    }
+  }
+
+  // RF-11: se crea siempre como PENDIENTE_AVISO para CONTRATO (R14); ADENDA/LEGITIMO_ABONO arrancan EN_TRAMITE (sin hitos).
+  const estadoInicial = body.tipoActuacion === "CONTRATO" ? "PENDIENTE_AVISO" : "EN_TRAMITE";
+
+  const creada = await getRepositorioActuaciones().crear(
+    {
+      tipoActuacion: body.tipoActuacion,
+      inmuebleId: body.inmuebleId.trim(),
+      expedienteId: body.expedienteId?.trim(),
+      actuacionAnteriorId: body.actuacionAnteriorId?.trim(),
+      sectorInteresadoAreaId: body.sectorInteresadoAreaId.trim(),
+      estadoActuacion: estadoInicial,
+    },
+    sesion.email
+  );
+
+  return NextResponse.json(creada, { status: 201 });
+}
