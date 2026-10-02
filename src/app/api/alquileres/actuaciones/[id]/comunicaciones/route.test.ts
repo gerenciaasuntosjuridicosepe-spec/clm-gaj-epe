@@ -154,4 +154,36 @@ describe("POST/PATCH /api/alquileres/actuaciones/[id]/comunicaciones — RF-22/R
     });
     expect(res.status).toBe(400);
   });
+
+  it("rechaza preparar un segundo borrador de AVISO mientras ya hay uno pendiente de enviar", async () => {
+    const { POST: crearContacto } = await import("@/app/api/alquileres/contactos-epe/route");
+    await crearContacto(
+      new NextRequest("http://localhost/api/alquileres/contactos-epe", {
+        method: "POST",
+        body: JSON.stringify({ areaId, nombre: "Jefe", cargo: "JEFE_SUCURSAL", mail: "jefe@epe.santafe.gov.ar" }),
+      })
+    );
+
+    const { POST } = await import("./route");
+    const primero = await POST(post({ tipoComunicacion: "AVISO" }), { params: Promise.resolve({ id: actuacionId }) });
+    expect(primero.status).toBe(201);
+
+    const segundo = await POST(post({ tipoComunicacion: "AVISO" }), { params: Promise.resolve({ id: actuacionId }) });
+    expect(segundo.status).toBe(400);
+  });
+
+  it("rechaza registrar una CARTA_DOCUMENTO para H-04 si ya está CUMPLIDO", async () => {
+    const { POST } = await import("./route");
+    const primero = await POST(
+      post({ tipoComunicacion: "CARTA_DOCUMENTO", numeroCartaDocumento: "CD-0001", fechaRegistro: "2026-01-10" }),
+      { params: Promise.resolve({ id: actuacionId }) }
+    );
+    expect(primero.status).toBe(201);
+
+    const segundo = await POST(
+      post({ tipoComunicacion: "CARTA_DOCUMENTO", numeroCartaDocumento: "CD-0002", fechaRegistro: "2026-01-11" }),
+      { params: Promise.resolve({ id: actuacionId }) }
+    );
+    expect(segundo.status).toBe(400);
+  });
 });

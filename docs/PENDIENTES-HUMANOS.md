@@ -92,4 +92,20 @@ El cómputo de días hábiles necesita la tabla `FERIADOS` cargada con los feria
 
 ---
 
+## 10. Redacción legal de la condición de IVA y la regla de actualización, para los contratos generados (RF-27)
+
+RF-27 pide que la plantilla de contrato muestre la "redacción" (el texto legal real, ej. "el canon se encuentra gravado con el Impuesto al Valor Agregado...") de la condición de IVA y de la regla de actualización — no el código interno (`MAS_IVA`/`SIN_IVA`, o el texto libre que se cargó en `regla_actualizacion`). Ningún PRD ni el xlsx reconstruido trae ese texto legal exacto, y es contenido contractual/legal — exactamente el tipo de cosa que el encargo pide no inventar (sección 3: "anything irreversible/security/personal-data/money-related... also goes to PENDIENTES-HUMANOS.md").
+
+`src/lib/alquileres/reglas/datos-plantilla.ts` (`armarValoresPlantillaContrato`) deja pasar el valor crudo guardado como placeholder explícito para las etiquetas `{{CONDICION_IVA}}`/`{{REGLA_ACTUALIZACION}}`, sin redactarlo.
+
+**Acción humana:** GAJ aporta la redacción exacta a usar para cada valor de `condicion_iva_canon` (hoy `MAS_IVA`/`SIN_IVA`) y el criterio de redacción para `regla_actualizacion` (texto libre) — una vez aportada, se carga como una función de mapeo código→texto en el mismo archivo (o, mejor, como un catálogo editable más, si la redacción puede variar).
+
+## 11. Generación real de documentos desde Google Docs (RF-25) — requiere Google real
+
+RF-25 (generar un contrato/adenda real desde una plantilla de Google Docs, guardarlo en Drive y crear el `DOCUMENTO` con origen GENERADO) necesita la API de Google Docs/Drive con la cuenta de servicio — prohibido en este desarrollo ("nunca hablar con Google real"). Se construyó y probó la parte que SÍ es posible sin Google: `reglas/datos-plantilla.ts` (`armarValoresPlantillaContrato`, `armarBloqueLocadores`, `reemplazarEtiquetas`) arma correctamente los 10 valores de `catalogos/etiquetas-plantilla-seed.ts` a partir del modelo de datos de Alquileres, con pruebas automáticas.
+
+**Acción humana (igual criterio que las pruebas técnicas a-d, ver punto 5):** cuando haya credenciales reales, construir un `GeneradorDocumentos` (mismo patrón que `TransporteSheetsHttp` para Sheets: una interfaz + implementación real + una implementación falsa para seguir probando sin Google) cuyo método reciba `plantilla.googleDocId` + los valores ya armados por `armarValoresPlantillaContrato`, haga la copia + reemplazo con la API de Docs, y guarde el resultado en `carpeta_drive_documentos`. La ruta de API que lo invoque (`POST .../documentos/generar`, todavía no creada) puede reusar toda la lógica pura ya hecha sin cambios.
+
+---
+
 *(Este archivo se sigue completando a medida que avanza el desarrollo — ver docs/PROGRESO.md para el estado de cada fase.)*

@@ -16,7 +16,7 @@ Documentos de referencia: `docs/DECISIONES.md` (por qué se decidió cada cosa),
 | Fase 0 (correcciones F0-1 a F0-7 + runbooks a-d) | **Cerrada** — 2026-09-30, ver detalle abajo |
 | Fase 1 (cimientos del módulo) | **Cerrada** — 2026-10-01, ver "Fase 1 — cierre" más abajo |
 | Fase 2 (hitos, alertas, dashboard, calendario) | **Cerrada** — 2026-10-02, ver "Fase 2 — cierre" más abajo |
-| Fase 3 (comunicaciones y documentos) | En curso — comunicaciones (RF-22/23/24), documentos (RF-28) y actos administrativos (RF-29) hechos; generación desde plantilla (RF-25/26/27) pendiente |
+| Fase 3 (comunicaciones y documentos) | **Cerrada en lo posible sin Google real** — 2026-10-02; falta solo la revisión adversarial formal y lo que requiere Google real (ver PENDIENTES-HUMANOS.md puntos 10-11) |
 | Fase 4 (reportes y operación) | No iniciada |
 | Fase 5/6 (piloto, migración) | Fuera de alcance de este desarrollo — requieren dictamen GAJ y datos reales (ver PENDIENTES-HUMANOS.md) |
 
@@ -68,16 +68,15 @@ Cerrada el 2026-10-02. Hitos, alertas, dashboard, calendario (ver la bitácora d
 
 ## Tarea actual
 
-Fase 3 — comunicaciones y documentos. Hecho hasta ahora: RF-22/23/24 (comunicaciones: borrador de aviso con destinatarios armados desde CONTACTOS_EPE, marcar como enviado, carta documento), RF-28 (adjuntar documento escaneado firmado) y RF-29 (actos administrativos, gatean FORMALIZADA de LEGITIMO_ABONO) — todo verificado en vivo de punta a punta. RF-25/26/27 (generación de contrato/adenda desde plantilla de Google Docs) sigue pendiente — necesita la API real de Docs, fuera de los límites duros de este desarrollo.
+Fase 3 — comunicaciones y documentos, **cerrada en lo que es posible sin Google real**. Hecho: RF-22/23/24 (comunicaciones), RF-28 (documentos), RF-29 (actos administrativos) — todo con ruta de API y verificado en vivo de punta a punta — y RF-25/26/27 en su parte de lógica pura (armado de los 10 valores de `ETIQUETAS_PLANTILLA`, sin la llamada real a Docs, que queda en `docs/PENDIENTES-HUMANOS.md`). Lo único explícitamente fuera de alcance de esta fase por los límites duros del encargo: la generación real del documento (necesita la API de Google Docs) y la redacción legal de IVA/actualización (contenido legal que no se inventa).
 
 ## Próximas tareas (orden previsto)
 
-1. RF-25/26/27: la parte de LÓGICA PURA es viable sin Google (armar los valores de las etiquetas `ETIQUETAS_PLANTILLA` desde la actuación/partes/inmueble — RF-26 bloque repetible de locadores, RF-27 `SECTOR_EPE` = nombre del sector no el representante) — se puede construir y probar esa parte; la llamada real a la API de Docs queda como paso manual/runbook, igual que las pruebas técnicas a-d.
+1. Revisión adversarial de cierre de Fase 3 (mismo proceso que Fases 1 y 2) antes de pasar a Fase 4.
 2. R17/R18 wiring (diferido de Fase 2): aplicar `aplicarCambioTipoActuacion` (RF-14) y las condiciones automáticas de NO_APLICA de R18.
 3. UI: pantallas propias para comunicaciones/documentos/actos dentro de la ficha de la actuación (hoy solo hay API — RF-16 "todos los bloques visibles sin cambiar de página" queda pendiente de una ficha de detalle real).
 4. Completar RF-12 con una pantalla de edición propia cuando exista esa ficha de detalle.
-5. Nota menor (no bloqueante): RF-23 menciona "Copiar"/"Abrir en Gmail" desde la UI — sin pantalla propia todavía, no hay dónde poner esos botones; la API ya deja `destinatarios`/`asunto`/`cuerpo` armados y listos para eso.
-6. Fase 4 (reportes y operación), después de cerrar Fase 3.
+5. Fase 4 (reportes y operación), después de cerrar Fase 3.
 
 ## Resultado de las últimas pruebas (2026-10-02)
 
@@ -85,11 +84,20 @@ Fase 3 — comunicaciones y documentos. Hecho hasta ahora: RF-22/23/24 (comunica
 > clm-gaj-epe@0.1.0 test
 > vitest run --run
 
- Test Files  47 passed (47)
-      Tests  377 passed (377)
+ Test Files  48 passed (48)
+      Tests  383 passed (383)
 ```
 
-`npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK — agrega `/api/alquileres/areas`, `/api/alquileres/contactos-epe`, `/api/alquileres/actuaciones/[id]/comunicaciones`, `/api/alquileres/actuaciones/[id]/documentos`, `/api/alquileres/actuaciones/[id]/actos-admin`; todo lo anterior (ABM, dashboard, alertas, calendario, rutas del CLM) sin cambios.
+`npx tsc --noEmit`: sin salida (limpio). `npm run lint`: sin salida (limpio). `npm run build`: OK — sin rutas nuevas en esta tanda (RF-25/26/27 es solo lógica de librería, sin ruta de API todavía — ver DECISIONES.md sobre por qué deliberadamente no se creó una ruta "generar documento" simulada).
+
+### 2026-10-02 — RF-25/26/27 (parcial): lógica pura de armado de plantillas, sin Google
+
+- Se releyó la hoja `ETIQUETAS_PLANTILLA` del xlsx reconstruido (10 etiquetas, 3 "Constatado en el PRD" y 7 "PROPUESTA") — ver `docs/DECISIONES.md` para el método de lectura (variación menor sobre el de Paso 0, sin huella en el repositorio, verificado con `git status`).
+- `catalogos/etiquetas-plantilla-seed.ts`: catálogo único de las 10 etiquetas con su estado (CONSTATADO/PROPUESTA) y campo de origen.
+- `reglas/datos-plantilla.ts`: `reemplazarEtiquetas` (reemplazo genérico `{{CLAVE}}`, deja el placeholder si falta el valor, para notar lo que falta cargar en vez de borrarlo en silencio), `armarBloqueLocadores` (RF-26: todas las partes TITULAR, en orden, con nombre + DNI o CUIT + domicilio + carácter — corrige el hallazgo 13 de mostrar solo un locador), `armarValoresPlantillaContrato` (arma los 10 valores; RF-27: `SECTOR_EPE` sale de `AREAS.nombre`, nunca del firmante — corrige el hallazgo 14).
+- **No se construyó** una ruta de API que "genere" un documento (ni con una URL simulada) — la llamada real a Google Docs/Drive es un paso que solo puede hacer un humano con credenciales reales; ver `docs/PENDIENTES-HUMANOS.md` puntos 10 y 11 para la redacción legal pendiente y el paso exacto de conexión real.
+- `reglas/datos-plantilla.test.ts` (6 pruebas): incluye la verificación explícita de que `SECTOR_EPE` nunca coincide con el nombre del firmante (hallazgo 14), y que el bloque de locadores respeta el orden y excluye a los FIRMANTE.
+- `npm test`: 383/383 OK (377 → 383, +6). `npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK.
 
 ### 2026-10-02 — Fase 3 (parcial): Comunicaciones (RF-22/23/24), Documentos (RF-28), Actos administrativos (RF-29)
 

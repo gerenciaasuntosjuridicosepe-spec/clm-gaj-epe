@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { esRespuestaError, requerirAccionAlquileres } from "@/lib/alquileres/auth-guard";
 import { MATRIZ_COMUNICACIONES } from "@/lib/alquileres/permisos";
 import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
+import { getRepositorioActuacionHitos } from "@/lib/alquileres/datos/actuacion-hitos";
 import { getRepositorioComunicaciones } from "@/lib/alquileres/datos/comunicaciones";
 import { getRepositorioAreas } from "@/lib/alquileres/datos/areas";
 import { getRepositorioContactosEpe } from "@/lib/alquileres/datos/contactos-epe";
@@ -61,6 +62,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const hitoId = HITO_POR_TIPO[body.tipoComunicacion];
+
+  // No tiene sentido preparar un AVISO/REITERACION o registrar una CARTA_DOCUMENTO para un hito que
+  // ya está CUMPLIDO o NO_APLICA — evita además acumular borradores huérfanos para el mismo hito.
+  const hitosDeLaActuacion = (await getRepositorioActuacionHitos().listar()).filter((h) => h.actuacionId === id);
+  const hitoDestino = hitosDeLaActuacion.find((h) => h.hitoId === hitoId);
+  if (hitoDestino && hitoDestino.estadoHito !== "PENDIENTE") {
+    return NextResponse.json(
+      { error: `El hito ${hitoId} ya está ${hitoDestino.estadoHito.toLowerCase()} — no corresponde preparar otra comunicación para él.` },
+      { status: 400 }
+    );
+  }
+
+  const comunicacionesDeLaActuacion = (await getRepositorioComunicaciones().listar()).filter((c) => c.actuacionId === id);
+  const borradorExistente = comunicacionesDeLaActuacion.find((c) => c.hitoId === hitoId && c.estadoComunicacion === "BORRADOR");
+  if (borradorExistente) {
+    return NextResponse.json(
+      { error: `Ya hay un borrador (${borradorExistente.comunicacionId}) preparado para el hito ${hitoId} — marcarlo como enviado antes de preparar otro.` },
+      { status: 400 }
+    );
+  }
 
   if (body.tipoComunicacion === "CARTA_DOCUMENTO") {
     // RF-24: no pasa por BORRADOR/ENVIADO — se registra el número y se cumple H-04 directamente.
