@@ -43,6 +43,11 @@ export async function POST(req: NextRequest) {
   }
 
   // R9: no duplicar — buscar antes por CUIT/CUIL o DNI y proponer reutilizar.
+  // TODO(revisión adversarial, Fase 1): misma ventana de carrera leer-antes-
+  // de-escribir que en inmuebles/expedientes (ver esos archivos) — acá
+  // además importa más, porque crear una PERSONA duplicada en paralelo
+  // puede derivar en dos fichas de locador con el mismo documento. Mismo
+  // criterio: aceptado a la escala de GAJ, no resuelto en Fase 1.
   const existentes = await getRepositorioPersonas().listar();
   const duplicada = buscarPersonaDuplicada(existentes, { dni: body.dni, cuitCuil: body.cuitCuil });
   if (duplicada) {

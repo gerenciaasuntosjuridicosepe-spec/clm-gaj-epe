@@ -35,6 +35,11 @@ export async function POST(req: NextRequest) {
   }
 
   // RF-07: único entre expedientes activos.
+  // TODO(revisión adversarial, Fase 1): misma ventana de carrera leer-antes-
+  // de-escribir que en src/app/api/alquileres/inmuebles/route.ts (ver el
+  // comentario ahí) — dos altas casi simultáneas con el mismo número
+  // podrían pasar las dos esta validación. Aceptado por ahora a la escala
+  // de GAJ (≤15 usuarios); no se resuelve en Fase 1.
   const existentes = await getRepositorioExpedientes().listar();
   if (existentes.some((e) => e.nroExpediente === body.nroExpediente)) {
     return NextResponse.json({ error: "Ya existe un expediente activo con ese número." }, { status: 409 });

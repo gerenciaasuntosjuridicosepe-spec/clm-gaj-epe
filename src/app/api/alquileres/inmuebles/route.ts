@@ -34,6 +34,18 @@ export async function POST(req: NextRequest) {
   }
 
   // RF-05: rechaza partida duplicada entre inmuebles activos.
+  // TODO(revisión adversarial, Fase 1): "leer para chequear, después crear"
+  // tiene una ventana de carrera — dos altas con la misma partida casi
+  // simultáneas podrían pasar las dos esta validación antes de que
+  // cualquiera de las dos exista todavía. Mismo tipo de ventana que el PRD
+  // v2.1 ya acepta explícitamente para el control de versión en ediciones
+  // (sección 4, punto 2: "milisegundos... se acepta para GAJ, hasta 15
+  // usuarios") — acá es alta, no edición, pero la escala de uso es la
+  // misma. No se resuelve en Fase 1: necesitaría una restricción de
+  // unicidad del lado del repositorio (ej. un segundo intento de lectura
+  // justo antes de escribir, o una cola de escritura), que hoy no existe
+  // para ninguna tabla. Si en el piloto real aparece un duplicado por esta
+  // vía, es la señal de que hay que resolverlo antes de Fase 5.
   if (body.partidaInmobiliaria) {
     const existentes = await getRepositorioInmuebles().listar();
     if (existentes.some((i) => i.partidaInmobiliaria === body.partidaInmobiliaria)) {

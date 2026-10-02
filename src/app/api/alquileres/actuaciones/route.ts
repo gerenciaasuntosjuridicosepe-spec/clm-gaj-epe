@@ -43,18 +43,18 @@ export async function POST(req: NextRequest) {
 
   const todas = await getRepositorioActuaciones().listar({ soloActivos: false });
 
-  // R3': si se informa una actuación anterior, validar la cadena antes de crear.
-  if (body.actuacionAnteriorId) {
-    const simulada = {
-      actuacionId: "(nueva)",
-      tipoActuacion: body.tipoActuacion,
-      inmuebleId: body.inmuebleId.trim(),
-      actuacionAnteriorId: body.actuacionAnteriorId,
-    } as Actuacion;
-    const validacion = validarCadenaActuacion(simulada, [...todas, simulada]);
-    if (!validacion.valida) {
-      return NextResponse.json({ error: validacion.error }, { status: 400 });
-    }
+  // R3': SIEMPRE se valida la cadena, no solo cuando se informa actuacion_anterior_id —
+  // ADENDA y LEGITIMO_ABONO lo EXIGEN (validarCadenaActuacion rechaza si falta), así que
+  // validar solo "cuando viene informado" dejaría pasar una ADENDA sin anterior.
+  const simulada = {
+    actuacionId: "(nueva)",
+    tipoActuacion: body.tipoActuacion,
+    inmuebleId: body.inmuebleId.trim(),
+    actuacionAnteriorId: body.actuacionAnteriorId?.trim() || undefined,
+  } as Actuacion;
+  const validacionCadena = validarCadenaActuacion(simulada, [...todas, simulada]);
+  if (!validacionCadena.valida) {
+    return NextResponse.json({ error: validacionCadena.error }, { status: 400 });
   }
 
   // RF-11: se crea siempre como PENDIENTE_AVISO para CONTRATO (R14); ADENDA/LEGITIMO_ABONO arrancan EN_TRAMITE (sin hitos).
