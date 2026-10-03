@@ -254,3 +254,17 @@ Se construyó y probó `reglas/datos-plantilla.ts` (armado de los 10 valores + r
 **Decisión de diseño menor:** el borrador NO se persiste como fila de `DOCUMENTOS` con `origen: GENERADO` (ese campo del esquema queda sin usar por ahora) — se regenera en cada pedido a partir de los datos actuales, sin guardar ningún archivo. Si el abogado quiere adjuntar la versión final al expediente, usa el flujo ya existente (RF-28: sube su propio archivo a Drive y pega el link). Se evaluó relajar `validarUrlDocumento` para aceptar una URL interna de "redescarga" en vez de un link real de Drive, y se descartó por ahora: agrega complejidad sin un beneficio claro todavía (nadie pidió poder "ver borradores generados anteriormente" como historial).
 
 **Verificado:** `src/lib/alquileres/servicios/generar-contrato-docx.test.ts` (5 pruebas: .docx válido, sector correcto nunca el del firmante, los dos locadores presentes, cláusulas vacías marcadas "A COMPLETAR", cláusulas cargadas se muestran tal cual) y la ruta `.../documentos/generar-contrato/route.test.ts` (2 pruebas, de punta a punta: crea inmueble+área+actuación+2 personas+2 partes reales, descarga el .docx, confirma que los dos locadores y el área aparecen en el XML del documento). `npm test`: 448/448. `npm run lint`: limpio. `npm run build`: limpio, ruta registrada.
+
+---
+
+## 2026-10-03 — Carlos (GAJ) elimina el requisito de dictamen formal escrito (D10) como condición dura de la Fase 5
+
+**Qué:** el PRD v2.1 (D10) exigía un dictamen interno escrito de GAJ sobre base legal del tratamiento, confidencialidad, seguridad e inscripción ante la AAIP, antes de cargar cualquier dato real de personas (Fase 5). Carlos, en su carácter de responsable de GAJ, decidió eliminar esa condición.
+
+**Alcance de la decisión (confirmado explícitamente con Carlos antes de aplicar el cambio):** se elimina el trámite de formalizar un documento separado — el análisis de fondo (base legal, confidencialidad, seguridad, AAIP si corresponde) Carlos ya lo evaluó. No se elimina el criterio de fondo de protección de datos personales, solo el requisito de un papel firmado aparte antes de poder avanzar.
+
+**Por qué se preguntó antes de aplicar:** es exactamente el tipo de decisión que el encargo original (ver el primer mensaje de esta tanda de trabajo) pedía escalar a un humano — toca datos personales/seguridad, no es reversible en el sentido de que una vez cargados datos reales de personas no se puede "deshacer" fácilmente. Como quien pide el cambio es la misma persona que tiene la autoridad de GAJ sobre este punto (no un desarrollo autónomo decidiéndolo solo), se confirmó el alcance exacto y se aplicó.
+
+**Consecuencia:** la Fase 5 (piloto con datos reales) deja de tener esta traba documental. Sigue sin estar empezada — es trabajo nuevo (cargar datos reales, correr la UAT de los casos D.7770/D.7761 si Carlos los aporta, etc.), fuera del alcance de las Fases 0-4 ya cerradas, a decidir por separado cuándo arrancar.
+
+**Verificado:** sin cambios de código — solo documentación (`docs/PENDIENTES-HUMANOS.md` punto 3, `docs/INFORME-FINAL.md`, `docs/PROGRESO.md`).

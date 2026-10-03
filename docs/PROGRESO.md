@@ -18,7 +18,7 @@ Documentos de referencia: `docs/DECISIONES.md` (por qué se decidió cada cosa),
 | Fase 2 (hitos, alertas, dashboard, calendario) | **Cerrada** — 2026-10-02, ver "Fase 2 — cierre" más abajo |
 | Fase 3 (comunicaciones y documentos) | **Cerrada en lo posible sin Google real** — 2026-10-02, ver "Fase 3 — cierre" más abajo; lo que requiere Google real queda en PENDIENTES-HUMANOS.md puntos 10-11 |
 | Fase 4 (reportes y operación) | **Cerrada en lo posible sin Google real** — 2026-10-02, ver "Fase 4 — cierre" más abajo; es la última fase del encargo (Fase 5/6 quedan fuera de alcance) |
-| Fase 5/6 (piloto, migración) | Fuera de alcance de este desarrollo — requieren dictamen GAJ y datos reales (ver PENDIENTES-HUMANOS.md) |
+| Fase 5/6 (piloto, migración) | Fuera de alcance de este desarrollo — requieren datos reales, sin empezar (ya sin la traba del dictamen formal de GAJ, eliminada por Carlos el 2026-10-03 — ver DECISIONES.md) |
 
 ## Fase 0 — cierre
 

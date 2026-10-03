@@ -28,11 +28,13 @@ La hoja `EJEMPLO_CARGA` del xlsx reconstruido dice literalmente: *"(a completar 
 
 **Acción humana:** aportar los datos concretos de ambos expedientes (inmueble, locadores, fechas, canon, hitos reales) para poder cargarlos como datos de prueba y correr la UAT de la sección 9 del PRD v1. Mientras tanto, el desarrollo usa datos ficticios inventados (nunca reales) para probar los mismos flujos (renovación con hitos; tres locadores con hueco de cobertura), dejando claro en el seed de datos mock que son ficticios y no los casos reales.
 
-## 3. Dictamen interno de GAJ sobre datos personales (D10, precondición dura de la Fase 5)
+## 3. Dictamen interno de GAJ sobre datos personales (D10) — RESUELTO 2026-10-03, ya no es una condición bloqueante
 
-El PRD v2.1 fija una compuerta explícita: *"Antes de la Fase 5 (datos reales), GAJ emite un dictamen interno sobre base legal del tratamiento, transferencia internacional, confidencialidad, seguridad e inscripción de la base ante la AAIP, si correspondiera."* Esto es una decisión legal/institucional que no le corresponde tomar a un desarrollo de software.
+El PRD v2.1 fijaba una compuerta explícita (D10): *"Antes de la Fase 5 (datos reales), GAJ emite un dictamen interno sobre base legal del tratamiento, transferencia internacional, confidencialidad, seguridad e inscripción de la base ante la AAIP, si correspondiera."*
 
-**Acción humana:** Carlos (GAJ) debe redactar y aprobar ese dictamen antes de que se cargue cualquier dato real de locadores (DNI, CUIT, domicilio, mail, teléfono). El desarrollo autónomo **no avanza a la Fase 5** (carga de datos reales) de todos modos — se detiene en el cierre de Fase 4 según indica el encargo.
+**Decisión de Carlos, en su carácter de responsable de GAJ (2026-10-03):** el fondo del análisis (base legal del tratamiento, confidencialidad, seguridad, inscripción ante la AAIP si correspondiera) ya está evaluado — lo que sobraba era el trámite de redactar un documento formal separado antes de poder avanzar. Se elimina el requisito de ese documento como condición dura de la Fase 5. El criterio de fondo (no cargar datos reales de personas sin base legal) sigue vigente, simplemente no está condicionado a un papel firmado aparte.
+
+**Importante:** esto saca la traba *documental* para la Fase 5, no significa que la Fase 5 ya esté en marcha — cargar datos reales (RF del piloto, UAT con los casos D.7770/D.7761 si Carlos los aporta) sigue siendo trabajo nuevo, todavía no empezado, a decidir por separado.
 
 ## 4. Planilla real de Google Sheets para Alquileres + cuenta de servicio
 
@@ -45,7 +47,7 @@ El PRD v2.1 fija una compuerta explícita: *"Antes de la Fase 5 (datos reales), 
 5. Verificación end-to-end real: login real por `dev-bypass` como `administrador_sistema`/`ADMINISTRADOR` de Alquileres → `POST /api/alquileres/inmuebles` con un inmueble ficticio (`INM-0001`, "Calle Ficticia 123, Rosario", explícitamente marcado como dato de prueba en `observaciones`) → confirmado leyendo la planilla real por API que la fila llegó a `INMUEBLES` **y** que `LOG_CAMBIOS` registró la `ALTA` correspondiente (`LOG-0001`) — RF-38/M9 funcionando contra Sheets real, no solo contra el fake.
 6. La fila de prueba y su entrada de auditoría se borraron de la planilla después de verificar (quedó vacía, lista para datos reales). Las hojas de secuencia (`SEQ_INM`, `SEQ_LOG`) **no** se tocaron — son de solo-apéndice por diseño (nunca se reutiliza un ID aunque se borre el dato), así que el próximo inmueble real va a ser `INM-0002`, no `INM-0001` otra vez. Esto es el comportamiento correcto, no un problema a corregir.
 
-**Sigue pendiente de un humano:** las pruebas técnicas a-d (punto 5 más abajo, requieren `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` reales para probar el login de Google de verdad, no `dev-bypass`) y cargar datos reales (bloqueado por el punto 3, dictamen de GAJ).
+**Sigue pendiente de un humano:** las pruebas técnicas a-d (punto 5 más abajo — la (a) ya se ejecutó parcialmente, ver `docs/runbooks/prueba-a-login.md`) y cargar datos reales (ya sin la traba documental del punto 3, pero sigue siendo trabajo nuevo no empezado — ver Fase 5/6, fuera de alcance de este desarrollo).
 
 ## 5. Pruebas técnicas a-d de la Fase 0 (sección 3 del PRD v2.1) contra Google real
 
