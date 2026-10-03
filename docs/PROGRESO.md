@@ -458,3 +458,14 @@ Tarea fuera de las 4 fases ya cerradas, hecha a pedido de Carlos tras evaluar la
 - Verificado de punta a punta contra el mock: `route.test.ts` crea un inmueble, un área, una actuación y dos personas/partes reales vía las rutas de API existentes, pide el borrador, lo desarma con `jszip` y confirma que los dos locadores y el nombre del área aparecen en el XML del documento.
 - `npm test`: 448/448 OK (+8 sobre el cierre de Fase 4). `npx tsc --noEmit`: limpio (dos errores de tipos encontrados y corregidos en el camino: `Buffer` vs `BodyInit` de `NextResponse`, y un tipo de catálogo mal elegido en un fixture de test). `npm run lint`: limpio. `npm run build`: OK, ruta nueva registrada.
 - Pendiente, no bloqueante: sin botón en ninguna pantalla todavía (se opera vía API, mismo criterio que comunicaciones/documentos/partes de Fase 3) — ver `docs/PENDIENTES-HUMANOS.md` punto 11.
+
+---
+
+## 2026-10-03 — Botón "Generar borrador (.docx)" en la pantalla de Actuaciones
+
+A pedido de Carlos, se agregó el único punto de UI que faltaba para RF-25/26/27 (hasta ahora se operaba solo vía API).
+
+- `src/app/alquileres/actuaciones/page.tsx` + `alquileres-actuaciones-client.tsx`: columna nueva, visible solo si el rol tiene acceso de lectura a `MATRIZ_DOCUMENTOS` (mismo criterio que el resto de la UI condicionada por permiso). El link apunta directo a `GET .../documentos/generar-contrato` — descarga nativa del navegador, sin JS de por medio.
+- **Verificado en vivo contra la planilla REAL de Alquileres** (no el mock): se creó un inmueble, un área y una actuación CONTRATO reales vía la UI/API, el botón apareció en la fila correspondiente, la descarga devolvió un `.docx` válido (`file` lo identifica como "Microsoft Word 2007+", 9.893 bytes) con el nombre del área real y la marca "A COMPLETAR POR EL ÁREA LEGAL" en las dos cláusulas sin cargar.
+- **Hallazgo en la limpieza de datos de prueba** (no del código, de mi propio script de limpieza): al crear la actuación CONTRATO se generaron automáticamente 8 `ACTUACION_HITOS` (RF-19, comportamiento correcto) — mi primer intento de borrar las filas de prueba de la planilla real no contempló esto ni el ancho completo de columnas de `AREAS`/`ACTUACIONES`, dejando filas a medio borrar. Corregido con un segundo paso que limpió todo (`INMUEBLES`, `AREAS`, `ACTUACIONES`, `ACTUACION_HITOS`, `LOG_CAMBIOS` — confirmado en 0 filas de datos en los cinco).
+- `npm test`: 448/448 (sin pruebas nuevas — es un cambio de UI sobre lógica ya probada). `npm run lint` y `npm run build`: limpios.

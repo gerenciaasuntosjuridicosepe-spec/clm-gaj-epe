@@ -12,10 +12,13 @@ export function AlquileresActuacionesClient({
   actuacionesIniciales,
   inmuebles,
   puedeCrear,
+  puedeGenerarBorrador,
 }: {
   actuacionesIniciales: Actuacion[];
   inmuebles: Inmueble[];
   puedeCrear: boolean;
+  /** RF-25/26/27 (decisión 2026-10-03, ver docs/DECISIONES.md): mismo permiso que ver documentos (`MATRIZ_DOCUMENTOS`, acción "leer") — generar un borrador no persiste nada, es equivalente a leer. */
+  puedeGenerarBorrador: boolean;
 }) {
   const [actuaciones, setActuaciones] = React.useState(actuacionesIniciales);
   const [error, setError] = React.useState<string | null>(null);
@@ -125,6 +128,7 @@ export function AlquileresActuacionesClient({
               <th className="px-3.5 py-2.5">Tipo</th>
               <th className="px-3.5 py-2.5">Inmueble</th>
               <th className="px-3.5 py-2.5">Estado</th>
+              {puedeGenerarBorrador && <th className="px-3.5 py-2.5" />}
             </tr>
           </thead>
           <tbody>
@@ -138,6 +142,15 @@ export function AlquileresActuacionesClient({
                     {a.estadoActuacion}
                   </Badge>
                 </td>
+                {puedeGenerarBorrador && (
+                  <td className="px-3.5 py-2.5 text-right">
+                    <Button size="xs" variant="ghost" asChild>
+                      <a href={`/api/alquileres/actuaciones/${a.actuacionId}/documentos/generar-contrato`}>
+                        Generar borrador (.docx)
+                      </a>
+                    </Button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

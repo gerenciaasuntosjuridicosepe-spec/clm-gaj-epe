@@ -2,7 +2,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { AlquileresActuacionesClient } from "@/components/pages/alquileres-actuaciones-client";
 import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioInmuebles } from "@/lib/alquileres/datos/inmuebles";
-import { puedeAlquileres, MATRIZ_GESTION } from "@/lib/alquileres/permisos";
+import { puedeAlquileres, MATRIZ_GESTION, MATRIZ_DOCUMENTOS } from "@/lib/alquileres/permisos";
 import { auth } from "@/auth";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +27,7 @@ export default async function AlquileresActuacionesPage() {
         actuacionesIniciales={actuaciones}
         inmuebles={inmuebles}
         puedeCrear={puedeAlquileres(rol, "crear", MATRIZ_GESTION)}
+        puedeGenerarBorrador={puedeAlquileres(rol, "leer", MATRIZ_DOCUMENTOS)}
       />
     </AppShell>
   );
