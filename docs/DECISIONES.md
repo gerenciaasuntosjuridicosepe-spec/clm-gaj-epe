@@ -220,3 +220,15 @@ Se construyó y probó `reglas/datos-plantilla.ts` (armado de los 10 valores + r
 **Hallazgo durante la verificación:** `register()`/`onRequestError` se ligan una sola vez cuando arranca el proceso de `next dev` — un primer intento de verificación, editando `instrumentation.ts` con el servidor ya corriendo desde antes, dio "no se registró nada" porque el proceso en memoria nunca había cargado la versión nueva del archivo. Reiniciar `next dev` lo resolvió. Se documenta en `docs/PROGRESO.md` para que quien continúe no repita la misma confusión (a diferencia de casi todo el resto del código de este módulo, que sí tiene hot-reload en `next dev`).
 
 **Verificado:** `administracion/errores/route.test.ts` (3 pruebas) y en vivo: un `POST` con JSON inválido a una ruta real (`/api/alquileres/inmuebles`) disparó el error, y apareció solo, sin ningún cambio en esa ruta, en `GET /api/alquileres/administracion/errores`.
+
+---
+
+## 2026-10-03 — Carlos descarta las pruebas técnicas (b) y (d), decisión humana explícita
+
+**Qué:** de las 4 pruebas técnicas de la Fase 0 (sección 3 del PRD v2.1), Carlos decidió no ejecutar (b) carga de 4.000 filas/10 usuarios simultáneos ni (d) 20 IDs concurrentes + escritura atómica contra Google real.
+
+**Por qué:** (b) requería escribir primero un script de carga masiva de datos ficticios que nunca se construyó durante el desarrollo autónomo (el runbook lo daba por hecho, pero no existe — ver discrepancia encontrada el 2026-10-03); (d) requería un script chico de 20 altas concurrentes, factible pero de valor marginal frente al riesgo/tiempo, dado que la lógica de asignación de ID y la escritura atómica ya están probadas exhaustivamente contra el doble de la API (`FakeSheetsApi`, T1'), y la escala real de EPE (~15 usuarios, no 10 simultáneos de forma sostenida) hace que el escenario de colisión sea de bajo riesgo práctico.
+
+**Alternativas consideradas:** escribir ambos scripts ahora igual (se descartó por tiempo/beneficio); dejarlas "pendientes" indefinidamente en PENDIENTES-HUMANOS.md (se descartó: es más honesto marcarlas descartadas por decisión explícita que dejarlas como un pendiente eterno que nadie va a resolver).
+
+**Consecuencia:** si en producción real aparecieran 429 de cuota o IDs duplicados, son exactamente los dos riesgos que estas pruebas iban a descartar — quedan como riesgo conocido y aceptado, no como bug. Los runbooks `docs/runbooks/prueba-b-carga.md` y `prueba-d-concurrencia.md` se conservan sin cambios, como referencia de qué habría que hacer si el riesgo se materializa y hay que revisitar la decisión.
