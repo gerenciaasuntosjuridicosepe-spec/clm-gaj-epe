@@ -482,3 +482,33 @@ Carlos cargó un `.env.local` con `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` reales (
 - **No probado**: el caso con una cuenta de Workspace, y el caso de una cuenta que nunca estuvo en la lista (en vez de una dada de baja) — no había una segunda cuenta de Google real disponible. El código ejecuta la misma rama en ambos casos (`puedeIniciarSesion` en `src/lib/acceso-modulo.ts`), así que la cobertura real es alta, pero queda anotado como pendiente en `docs/PENDIENTES-HUMANOS.md` punto 5 para cuando haya una segunda cuenta.
 - Detalle completo en `docs/runbooks/prueba-a-login.md` (actualizado con el resultado real).
 - Sin cambios de código permanentes — no hay commit de `src/`, solo de documentación.
+
+---
+
+## 2026-10-03 — 10 casos de ejemplo cargados en la planilla real de Alquileres
+
+A pedido de Carlos, se cargaron 10 actuaciones de ejemplo (todas con datos ficticios, marcados explícitamente como tales en `observaciones`) cubriendo distintos estados y los 3 tipos de actuación, para tener un demo representativo en el despliegue:
+
+| # | ID | Tipo | Estado | Qué muestra |
+| --- | --- | --- | --- | --- |
+| 1 | ACT-0002 | CONTRATO | PENDIENTE_AVISO | Recién creado, sin avanzar |
+| 2 | ACT-0005 | CONTRATO | AVISO_ENVIADO | RF-22/23: aviso preparado con destinatarios reales de CONTACTOS_EPE, marcado enviado |
+| 3 | ACT-0006 | CONTRATO | PENDIENTE_AVISO | H-05 cumplido pero sin `expediente_id` vinculado — ver hallazgo abajo |
+| 4 | ACT-0007 | CONTRATO | EN_TRAMITE | Expediente vinculado desde la creación + H-05 cumplido |
+| 5 | ACT-0008 | CONTRATO | FORMALIZADA | 3 locadores (RF-26), formalización completa |
+| 6 | ACT-0009 | CONTRATO | CERRADA | Ciclo completo H-15 → H-20 |
+| 7 | ACT-0010 | CONTRATO | FORMALIZADA | `fecha_fin` a ~16 días — alimenta alertas/calendario |
+| 8 | ACT-0011 | ADENDA | FORMALIZADA | Prórroga del caso 5 (`actuacion_anterior_id`) |
+| 9 | ACT-0012 | LEGITIMO_ABONO | FORMALIZADA | Con acto administrativo (RF-29) |
+| 10 | ACT-0013 | LEGITIMO_ABONO | EN_TRAMITE | Intento de formalizar SIN acto administrativo, rechazado a propósito (R29) |
+
+Base compartida: 2 Áreas (`AR-0002` Sucursal, `AR-0003` Gerencia), 3 Contactos EPE (`CON-0001/0002/0003`), 12 Personas ficticias (`PER-0001` a `PER-0013`, con CUIT de dígito verificador válido generado ad hoc), 10 Inmuebles (`INM-0003` a `INM-0012` — `INM-0012` queda sin actuación, como "disponible"), 1 Expediente (`EXP-0002`, vinculado al caso 4).
+
+**Verificado:** `/alquileres` (dashboard) muestra 2 contratos vigentes (coincide con los casos 5 y 7, los únicos FORMALIZADA con `fecha_fin` futura) — confirmado leyendo el HTML real, no solo asumido.
+
+### Dos hallazgos reales encontrados al cargar los datos (no bugs del código nuevo, del módulo ya existente)
+
+1. **Cuota de escritura de la API de Sheets (60/min) es un límite real y cercano.** Una sola alta de actuación CONTRATO genera 8 hitos automáticos (RF-19), y cada alta (actuación, hito, persona, etc.) hace ~3 escrituras reales (secuencia + fila + `LOG_CAMBIOS`) — una sola alta de CONTRATO consume ~27 de las 60 escrituras/minuto disponibles. Un uso real con varias personas cargando datos en simultáneo podría pisar este límite (la prueba técnica (b), que medía exactamente esto con una carga mayor, fue descartada por Carlos el mismo día — ver `docs/DECISIONES.md` — este hallazgo la vuelve más relevante de lo que parecía en ese momento, pero no cambia la decisión ya tomada, solo la deja mejor fundamentada). **Dos intentos fallidos por este límite dejaron registros huérfanos** (una actuación con menos hitos de los que corresponde, visible solo si se lista con `soloActivos: false` — nunca en el uso normal de la app, que filtra por `activo`) — se identificaron y limpiaron con `batchClear` antes de cerrar esta tarea.
+2. **`expediente_id` de una actuación solo se puede fijar al crearla (`POST /api/alquileres/actuaciones`), no editarla después** — la ruta de formalización guiada (`PATCH /api/alquileres/actuaciones/[id]`, RF-12 parcial) no incluye ese campo entre los editables. Esto es real: no hay forma hoy de vincular un expediente a una actuación que ya se creó sin expediente. El caso de ejemplo 3 quedó así a propósito, relabeled para mostrar el caso real en vez de forzarlo. Queda anotado para quien continúe RF-12 (no es parte de las 4 fases ya cerradas, es un gap menor dentro de lo ya construido).
+
+Sin cambios de código en esta tarea — solo datos reales en la planilla de Alquileres y esta documentación.
