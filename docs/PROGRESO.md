@@ -469,3 +469,16 @@ A pedido de Carlos, se agregó el único punto de UI que faltaba para RF-25/26/2
 - **Verificado en vivo contra la planilla REAL de Alquileres** (no el mock): se creó un inmueble, un área y una actuación CONTRATO reales vía la UI/API, el botón apareció en la fila correspondiente, la descarga devolvió un `.docx` válido (`file` lo identifica como "Microsoft Word 2007+", 9.893 bytes) con el nombre del área real y la marca "A COMPLETAR POR EL ÁREA LEGAL" en las dos cláusulas sin cargar.
 - **Hallazgo en la limpieza de datos de prueba** (no del código, de mi propio script de limpieza): al crear la actuación CONTRATO se generaron automáticamente 8 `ACTUACION_HITOS` (RF-19, comportamiento correcto) — mi primer intento de borrar las filas de prueba de la planilla real no contempló esto ni el ancho completo de columnas de `AREAS`/`ACTUACIONES`, dejando filas a medio borrar. Corregido con un segundo paso que limpió todo (`INMUEBLES`, `AREAS`, `ACTUACIONES`, `ACTUACION_HITOS`, `LOG_CAMBIOS` — confirmado en 0 filas de datos en los cinco).
 - `npm test`: 448/448 (sin pruebas nuevas — es un cambio de UI sobre lógica ya probada). `npm run lint` y `npm run build`: limpios.
+
+---
+
+## 2026-10-03 — Prueba técnica (a): login real con Google, ejecutada parcialmente
+
+Carlos cargó un `.env.local` con `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` reales (las mismas credenciales OAuth que ya usa el CLM) en este worktree, ya terminado el desarrollo autónomo.
+
+- **Login autorizado**: Carlos inició sesión real con `paganinicg@gmail.com` → entró normal. OK.
+- **Rechazo por baja lógica (T16')**: se marcó `activo: false` para esa cuenta en `mock-catalogos.ts` (cambio temporal, revertido después — confirmado con `git diff` sin diferencias), reinicio del servidor, Carlos cerró sesión y reintentó con la misma cuenta de Google → "Acceso no autorizado", aunque Google confirmó la identidad igual. OK — RA-1/T16' funciona como se diseñó.
+- Revertido el cambio, reiniciado el servidor, Carlos volvió a entrar sin problema. OK.
+- **No probado**: el caso con una cuenta de Workspace, y el caso de una cuenta que nunca estuvo en la lista (en vez de una dada de baja) — no había una segunda cuenta de Google real disponible. El código ejecuta la misma rama en ambos casos (`puedeIniciarSesion` en `src/lib/acceso-modulo.ts`), así que la cobertura real es alta, pero queda anotado como pendiente en `docs/PENDIENTES-HUMANOS.md` punto 5 para cuando haya una segunda cuenta.
+- Detalle completo en `docs/runbooks/prueba-a-login.md` (actualizado con el resultado real).
+- Sin cambios de código permanentes — no hay commit de `src/`, solo de documentación.

@@ -1,6 +1,20 @@
 # Runbook — Prueba técnica (a): login con cuenta @gmail.com personal y de Workspace
 
-PRD v2.1, sección 3, tabla de pruebas técnicas de la Fase 0. **No ejecutada por el desarrollo autónomo**: requiere cuentas de Google reales y credenciales OAuth, que no existen en este worktree (sin `.env.local`, por instrucción explícita).
+PRD v2.1, sección 3, tabla de pruebas técnicas de la Fase 0. **No ejecutada por el desarrollo autónomo**: requería cuentas de Google reales y credenciales OAuth, que no existían en este worktree (sin `.env.local`, por instrucción explícita).
+
+## Resultado real — ejecutada 2026-10-03 (Carlos + coordinador), PARCIAL
+
+Se cargó un `.env.local` real en este worktree (excepción puntual, ya terminado el desarrollo autónomo — `AUTH_SECRET`/`AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`, las mismas credenciales OAuth que ya usa el CLM, mismo proyecto de Google Cloud) y se probó con la única cuenta real disponible (`paganinicg@gmail.com`, personal):
+
+1. **Login autorizado** (paso 3 de este runbook): Carlos inició sesión real con Google desde el navegador → entró normal a la Bandeja. **OK.**
+2. **Cuenta rechazada por baja lógica** (paso 5): se marcó `activo: false` para esa misma cuenta en `mock-catalogos.ts` (temporal, revertido enseguida), se reinició el servidor, Carlos cerró sesión y volvió a loguearse con la misma cuenta de Google → Google confirmó la identidad igual, pero la app mostró "Acceso no autorizado" (`AccessDenied`). **OK** — confirma RA-1/T16': la cuenta de Google decide la identidad, la hoja Usuarios decide el acceso, no al revés.
+3. Revertido el cambio, reiniciado el servidor, Carlos volvió a loguearse sin problema con la misma cuenta. **OK.**
+
+**No se pudo probar** (sin una segunda cuenta de Google real disponible al momento de la prueba):
+- El caso con una cuenta de **Workspace** (paso 4) — sigue sin confirmarse que el dominio de la cuenta no influye, aunque es muy poco probable que sí lo haga: Auth.js con el provider Google no distingue tipos de cuenta, y el chequeo de autorización (`puedeIniciarSesion`) no mira el dominio del email en ningún punto del código.
+- El caso de una cuenta de Google válida que **nunca estuvo** en la hoja Usuarios (paso 6, T16') — no se probó con una cuenta distinta, pero el código ejecuta exactamente la misma rama (`puedeIniciarSesion` devuelve `false` tanto si `usuario` es `undefined` como si `usuario.activo === false`, ver `src/lib/acceso-modulo.ts` líneas 31-35), así que el caso 2 de arriba ya ejercita la misma lógica.
+
+**Queda pendiente** (ver `docs/PENDIENTES-HUMANOS.md`, punto 5): repetir los pasos 4 y 6 con una segunda cuenta de Google real (idealmente de Workspace) cuando haya una disponible, para tener la confirmación empírica completa.
 
 ## Qué confirma
 
