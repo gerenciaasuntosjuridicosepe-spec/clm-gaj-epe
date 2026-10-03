@@ -445,3 +445,16 @@ Primer paso de `docs/PENDIENTES-HUMANOS.md` resuelto por Carlos junto con el coo
 - Verificación end-to-end real (login `dev-bypass`, `POST /api/alquileres/inmuebles`, lectura directa de la planilla por API): la fila llega a `INMUEBLES` y queda auditada en `LOG_CAMBIOS` (`ALTA`). Fila de prueba borrada después de verificar; secuencias (`SEQ_INM`/`SEQ_LOG`) intactas a propósito.
 - Detalle completo en `docs/PENDIENTES-HUMANOS.md`, punto 4 (marcado RESUELTO).
 - No se corrió `npm test`/`lint`/`build` para esta tarea porque no hubo cambio de código — solo configuración externa + verificación manual. El estado de la suite sigue siendo el del cierre de Fase 4 (`docs/INFORME-FINAL.md`).
+
+---
+
+## 2026-10-03 — RF-25/26/27: generación de borrador de contrato en .docx (server-side, sin Google)
+
+Tarea fuera de las 4 fases ya cerradas, hecha a pedido de Carlos tras evaluar la prueba técnica (c). Decisión completa en `docs/DECISIONES.md`.
+
+- Nueva dependencia `docx` (runtime) + `jszip` (solo dev, para los tests) — justificadas en DECISIONES.md, sin vulnerabilidades nuevas (`npm audit`: mismas 5 preexistentes de `eslint-config-next`, nada de `docx`/`jszip`).
+- `src/lib/alquileres/servicios/generar-contrato-docx.ts`: arma el .docx completo a partir de `armarValoresPlantillaContrato` (ya existente) — un párrafo por cada una de las 10 etiquetas de `ETIQUETAS_PLANTILLA_SEED`, con las dos cláusulas legales marcadas "A COMPLETAR POR EL ÁREA LEGAL" cuando no están cargadas.
+- `GET /api/alquileres/actuaciones/[id]/documentos/generar-contrato`: descarga el .docx, regenerado en cada pedido (no se persiste nada — ver decisión sobre `origen: GENERADO` en DECISIONES.md).
+- Verificado de punta a punta contra el mock: `route.test.ts` crea un inmueble, un área, una actuación y dos personas/partes reales vía las rutas de API existentes, pide el borrador, lo desarma con `jszip` y confirma que los dos locadores y el nombre del área aparecen en el XML del documento.
+- `npm test`: 448/448 OK (+8 sobre el cierre de Fase 4). `npx tsc --noEmit`: limpio (dos errores de tipos encontrados y corregidos en el camino: `Buffer` vs `BodyInit` de `NextResponse`, y un tipo de catálogo mal elegido en un fixture de test). `npm run lint`: limpio. `npm run build`: OK, ruta nueva registrada.
+- Pendiente, no bloqueante: sin botón en ninguna pantalla todavía (se opera vía API, mismo criterio que comunicaciones/documentos/partes de Fase 3) — ver `docs/PENDIENTES-HUMANOS.md` punto 11.

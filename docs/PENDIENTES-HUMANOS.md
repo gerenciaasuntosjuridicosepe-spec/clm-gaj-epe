@@ -94,11 +94,19 @@ RF-27 pide que la plantilla de contrato muestre la "redacción" (el texto legal 
 
 **Acción humana:** GAJ aporta la redacción exacta a usar para cada valor de `condicion_iva_canon` (hoy `MAS_IVA`/`SIN_IVA`) y el criterio de redacción para `regla_actualizacion` (texto libre) — una vez aportada, se carga como una función de mapeo código→texto en el mismo archivo (o, mejor, como un catálogo editable más, si la redacción puede variar).
 
-## 11. Generación real de documentos desde Google Docs (RF-25) — requiere Google real
+## 11. Generación de documentos (RF-25/26/27) — RESUELTO 2026-10-03 con un enfoque distinto al del PRD
 
-RF-25 (generar un contrato/adenda real desde una plantilla de Google Docs, guardarlo en Drive y crear el `DOCUMENTO` con origen GENERADO) necesita la API de Google Docs/Drive con la cuenta de servicio — prohibido en este desarrollo ("nunca hablar con Google real"). Se construyó y probó la parte que SÍ es posible sin Google: `reglas/datos-plantilla.ts` (`armarValoresPlantillaContrato`, `armarBloqueLocadores`, `reemplazarEtiquetas`) arma correctamente los 10 valores de `catalogos/etiquetas-plantilla-seed.ts` a partir del modelo de datos de Alquileres, con pruebas automáticas.
+El PRD v2.1 pedía generar el contrato copiando una plantilla de **Google Docs** vía API (Docs/Drive) — prohibido durante el desarrollo autónomo. Carlos evaluó esa opción (ver explicación completa en el chat del 2026-10-03 y en `docs/DECISIONES.md`) y eligió en cambio **generar un .docx en el servidor, sin Google**, porque el bloque de locadores ya viene aplanado a un solo texto (no hace falta resolver "repetir una sección", que era la parte difícil de la integración con Docs) y porque el documento igual necesita una revisión legal humana después (ver punto 10 de este archivo) — perder la edición en vivo de un Google Doc es un costo menor.
 
-**Acción humana (igual criterio que las pruebas técnicas a-d, ver punto 5):** cuando haya credenciales reales, construir un `GeneradorDocumentos` (mismo patrón que `TransporteSheetsHttp` para Sheets: una interfaz + implementación real + una implementación falsa para seguir probando sin Google) cuyo método reciba `plantilla.googleDocId` + los valores ya armados por `armarValoresPlantillaContrato`, haga la copia + reemplazo con la API de Docs, y guarde el resultado en `carpeta_drive_documentos`. La ruta de API que lo invoque (`POST .../documentos/generar`, todavía no creada) puede reusar toda la lógica pura ya hecha sin cambios.
+**Ya hecho y verificado** (contra el mock, con TDD — no necesitaba Google real, así que esto NO queda pendiente de un humano):
+- `src/lib/alquileres/servicios/generar-contrato-docx.ts` — genera el .docx completo con la librería `docx` (MIT, sin vulnerabilidades, ver `npm audit` del commit de esta decisión).
+- `GET /api/alquileres/actuaciones/[id]/documentos/generar-contrato` — descarga el borrador, regenerado en cada pedido a partir de los datos actuales (no se persiste nada, no hay archivo en ningún lado salvo lo que el navegador descarga).
+- Las dos cláusulas legales (`CONDICION_IVA`/`REGLA_ACTUALIZACION`) se marcan visiblemente "A COMPLETAR POR EL ÁREA LEGAL" cuando no están cargadas — nunca se inventa el texto.
+
+**Lo que sigue pendiente, pero ya NO depende de Google real:**
+- No hay botón en ninguna pantalla todavía — se opera vía API directamente (mismo criterio que comunicaciones/documentos/partes de Fase 3, que tampoco tienen una ficha de actuación integrada, ver `docs/INFORME-FINAL.md`). Agregar el botón es una tarea de UI chica, no bloqueada por nada externo.
+- La redacción legal real de las cláusulas de IVA/actualización (punto 10 de este archivo) — eso sigue siendo responsabilidad de GAJ, con cualquier enfoque de generación.
+- Si en el futuro se quisiera reconsiderar la integración con Google Docs (por ejemplo, si GAJ prefiere editar en línea en vez de un .docx descargado), el `GeneradorDocumentos` descripto originalmente en esta sección sigue siendo una opción válida — no se descartó por imposible, se descartó por decisión de producto.
 
 ---
 

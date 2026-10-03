@@ -232,3 +232,25 @@ Se construyó y probó `reglas/datos-plantilla.ts` (armado de los 10 valores + r
 **Alternativas consideradas:** escribir ambos scripts ahora igual (se descartó por tiempo/beneficio); dejarlas "pendientes" indefinidamente en PENDIENTES-HUMANOS.md (se descartó: es más honesto marcarlas descartadas por decisión explícita que dejarlas como un pendiente eterno que nadie va a resolver).
 
 **Consecuencia:** si en producción real aparecieran 429 de cuota o IDs duplicados, son exactamente los dos riesgos que estas pruebas iban a descartar — quedan como riesgo conocido y aceptado, no como bug. Los runbooks `docs/runbooks/prueba-b-carga.md` y `prueba-d-concurrencia.md` se conservan sin cambios, como referencia de qué habría que hacer si el riesgo se materializa y hay que revisitar la decisión.
+
+---
+
+## 2026-10-03 — RF-25/26/27: generación de documentos server-side (.docx), no Google Docs API
+
+**Qué:** el PRD v2.1 pedía generar el contrato copiando una plantilla de Google Docs vía API (corrigiendo el hallazgo 13: AutoCrat solo mapeaba un locador). Carlos, al evaluar la prueba técnica (c), eligió en cambio construir la generación **server-side con la librería `docx`** (MIT), sin tocar Google Docs/Drive en absoluto.
+
+**Por qué:**
+- `armarBloqueLocadores()` (ya construido en el desarrollo autónomo, Fase 3) aplana el bloque de locadores a un solo string — la parte realmente difícil de la integración con Docs (repetir una sección por cada locador) ya no existe como problema, así que el beneficio relativo de usar la API de Docs es menor de lo que parecía al principio.
+- Evita habilitar scopes nuevos de Google (Docs API, Drive API), una plantilla real, una carpeta de Drive compartida, y la cuota/latencia asociada.
+- El documento generado **siempre** necesita una revisión humana después (las cláusulas de IVA/actualización no se inventan, PENDIENTES-HUMANOS.md punto 10) — perder la edición en vivo de un Google Doc es un costo menor si de todos modos un abogado va a abrir el archivo.
+- Totalmente testeable offline, mismo patrón TDD que el resto del módulo (se verifica desarmando el .docx generado con `jszip` y revisando el XML).
+
+**Alternativas consideradas** (presentadas a Carlos antes de decidir):
+- A) Google Docs API real (lo que pedía el PRD) — descartada por lo de arriba, no por imposible.
+- C) Sin automatización, solo mostrar los 10 valores en pantalla para copiar a mano — descartada: ya que se iba a construir algo, generar el archivo completo cuesta poco más que mostrar los valores.
+
+**Dependencias nuevas, justificadas** (regla de la sección 2 del encargo original): `docx` (runtime, MIT, sin vulnerabilidades — `npm audit` limpio de cosas nuevas, las 5 preexistentes son de `eslint-config-next`) y `jszip` (solo devDependency, para desarmar el .docx en los tests — también usada internamente por `docx`, así que no agrega una familia de dependencias nueva).
+
+**Decisión de diseño menor:** el borrador NO se persiste como fila de `DOCUMENTOS` con `origen: GENERADO` (ese campo del esquema queda sin usar por ahora) — se regenera en cada pedido a partir de los datos actuales, sin guardar ningún archivo. Si el abogado quiere adjuntar la versión final al expediente, usa el flujo ya existente (RF-28: sube su propio archivo a Drive y pega el link). Se evaluó relajar `validarUrlDocumento` para aceptar una URL interna de "redescarga" en vez de un link real de Drive, y se descartó por ahora: agrega complejidad sin un beneficio claro todavía (nadie pidió poder "ver borradores generados anteriormente" como historial).
+
+**Verificado:** `src/lib/alquileres/servicios/generar-contrato-docx.test.ts` (5 pruebas: .docx válido, sector correcto nunca el del firmante, los dos locadores presentes, cláusulas vacías marcadas "A COMPLETAR", cláusulas cargadas se muestran tal cual) y la ruta `.../documentos/generar-contrato/route.test.ts` (2 pruebas, de punta a punta: crea inmueble+área+actuación+2 personas+2 partes reales, descarga el .docx, confirma que los dos locadores y el área aparecen en el XML del documento). `npm test`: 448/448. `npm run lint`: limpio. `npm run build`: limpio, ruta registrada.
