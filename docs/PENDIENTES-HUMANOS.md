@@ -36,22 +36,16 @@ El PRD v2.1 fija una compuerta explícita: *"Antes de la Fase 5 (datos reales), 
 
 ## 4. Planilla real de Google Sheets para Alquileres + cuenta de servicio
 
-Para que el módulo deje de correr en modo mock hace falta, tal como describe el PRD v2.1 sección 4 y D11:
+**RESUELTO 2026-10-03** (hecho por Carlos junto con el coordinador, fuera del desarrollo autónomo — es justamente el paso que solo podía hacer un humano). Quedó registrado acá para que conste, no como plantilla a futuro:
 
-1. Crear una planilla de Google Sheets nueva, separada de la del CLM (D1).
-2. Usar la **misma** cuenta de servicio que ya usa el CLM (D11: una sola, compartida) — su JSON de credenciales ya existe en el checkout principal (`C:\proyectos\clm-gaj-epe`), fuera del alcance de este worktree. Compartir la planilla nueva con el email de esa cuenta de servicio como Editor.
-3. Copiar el ID de la planilla nueva.
-4. Cargar en `.env.local` (del checkout que se vaya a usar para probar contra Google real — **no en este worktree**, por instrucción explícita de no crear `.env.local` acá):
-   ```
-   GOOGLE_SHEETS_ALQUILERES_ID=<ID de la planilla nueva>
-   ```
-   (las otras tres variables — `GOOGLE_SHEETS_SPREADSHEET_ID`, `GOOGLE_SERVICE_ACCOUNT_EMAIL`, `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` — siguen siendo las del CLM, ya documentadas en `INSTRUCTIVO_CONFIGURACION.md`).
-5. Correr el script de aprovisionamiento (**ya preparado y probado contra un doble/fake, nunca contra Google real, por este desarrollo**):
-   ```
-   npm run setup:sheet:alquileres
-   ```
-   Este script importa el esquema desde `src/lib/alquileres/esquema.ts` (fuente única, ver T21) — no duplica columnas a mano, así que no puede desincronizarse del código como pasó con `setup-sheet.mjs` del CLM (hallazgo F0-2).
-6. Verificar manualmente que `npm run dev` (con `.env.local` cargado) lee/escribe en la planilla real: entrar al módulo de Alquileres, crear un inmueble de prueba ficticio y confirmar que aparece una fila nueva en la hoja `INMUEBLES` de la planilla.
+1. Carlos creó una planilla nueva de Google Sheets, separada de la del CLM (D1): ID `1xXTSYNGXs03BCciXY0F0MxQsr_hEgOo9pQXKQqD9zXM`.
+2. La compartió como Editor con la cuenta de servicio ya usada por el CLM (D11: una sola, compartida) — `clm-gaj-sheets@epe-clm.iam.gserviceaccount.com`.
+3. El coordinador cargó un `.env.local` **dentro de este worktree** (`C:\proyectos\clm-gaj-epe-alquileres\.env.local` — excepción puntual a la regla de "no `.env.local` en este worktree" del encargo original, justificada porque ya se completó el desarrollo autónomo y este paso requiere probar contra Google real; el archivo está gitignorado, nunca se commiteó) con `GOOGLE_SHEETS_ALQUILERES_ID` + las credenciales de la cuenta de servicio (copiadas del checkout principal) + un `AUTH_SECRET` nuevo generado para esta prueba.
+4. Corrió `npm run setup:sheet:alquileres` contra la planilla real — las 34 hojas (20 tablas + 14 secuencias) se crearon correctamente, con los encabezados que importa de `src/lib/alquileres/esquema.ts` (T21 verificado en la práctica, no solo contra el fake).
+5. Verificación end-to-end real: login real por `dev-bypass` como `administrador_sistema`/`ADMINISTRADOR` de Alquileres → `POST /api/alquileres/inmuebles` con un inmueble ficticio (`INM-0001`, "Calle Ficticia 123, Rosario", explícitamente marcado como dato de prueba en `observaciones`) → confirmado leyendo la planilla real por API que la fila llegó a `INMUEBLES` **y** que `LOG_CAMBIOS` registró la `ALTA` correspondiente (`LOG-0001`) — RF-38/M9 funcionando contra Sheets real, no solo contra el fake.
+6. La fila de prueba y su entrada de auditoría se borraron de la planilla después de verificar (quedó vacía, lista para datos reales). Las hojas de secuencia (`SEQ_INM`, `SEQ_LOG`) **no** se tocaron — son de solo-apéndice por diseño (nunca se reutiliza un ID aunque se borre el dato), así que el próximo inmueble real va a ser `INM-0002`, no `INM-0001` otra vez. Esto es el comportamiento correcto, no un problema a corregir.
+
+**Sigue pendiente de un humano:** las pruebas técnicas a-d (punto 5 más abajo, requieren `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` reales para probar el login de Google de verdad, no `dev-bypass`) y cargar datos reales (bloqueado por el punto 3, dictamen de GAJ).
 
 ## 5. Pruebas técnicas a-d de la Fase 0 (sección 3 del PRD v2.1) contra Google real
 

@@ -433,3 +433,15 @@ Route (app)
 - Nota de alcance explícita en el código y acá: varios indicadores (situación de vigencia, semáforo de vencimiento, canon) dependen de `fecha_fin`, que recién se carga al formalizar una actuación (RF-12, todavía no construido) — con los datos de Fase 1/2 (altas rápidas, RF-11) esos indicadores dan 0 correctamente, no es un bug. A6 (formalizada sin escaneado) siempre da 0 porque no hay ABM de Documentos todavía (Fase 3).
 - **Verificado en vivo** (`npm run dev`): se creó un inmueble y una actuación CONTRATO, se abrió `/alquileres` → la página muestra las 8 tarjetas y la cola de trabajo (vacía con estos datos, correctamente — la actuación recién creada no tiene `fecha_fin` todavía, así que ninguna alerta que dependa de ella puede evaluarse). Sidebar muestra "Dashboard" como primer ítem. Sin errores en el log del servidor.
 - `npm test`: 346/346 OK. `npx tsc --noEmit`: limpio. `npm run lint`: limpio. `npm run build`: OK (agrega `/alquileres`).
+
+---
+
+## 2026-10-03 — Planilla real de Alquileres configurada y verificada (fuera del desarrollo autónomo)
+
+Primer paso de `docs/PENDIENTES-HUMANOS.md` resuelto por Carlos junto con el coordinador, ya cerrado el desarrollo autónomo de las 4 fases:
+
+- Planilla nueva creada y compartida con la cuenta de servicio del CLM (`clm-gaj-sheets@epe-clm.iam.gserviceaccount.com`, D11).
+- `npm run setup:sheet:alquileres` corrido contra Google real por primera vez: 34 hojas creadas (20 tablas + 14 secuencias) con los encabezados correctos — confirma T21 también en la práctica, no solo contra `FakeSheetsApi`.
+- Verificación end-to-end real (login `dev-bypass`, `POST /api/alquileres/inmuebles`, lectura directa de la planilla por API): la fila llega a `INMUEBLES` y queda auditada en `LOG_CAMBIOS` (`ALTA`). Fila de prueba borrada después de verificar; secuencias (`SEQ_INM`/`SEQ_LOG`) intactas a propósito.
+- Detalle completo en `docs/PENDIENTES-HUMANOS.md`, punto 4 (marcado RESUELTO).
+- No se corrió `npm test`/`lint`/`build` para esta tarea porque no hubo cambio de código — solo configuración externa + verificación manual. El estado de la suite sigue siendo el del cierre de Fase 4 (`docs/INFORME-FINAL.md`).
