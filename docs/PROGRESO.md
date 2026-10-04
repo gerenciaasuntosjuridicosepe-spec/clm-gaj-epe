@@ -512,3 +512,14 @@ Base compartida: 2 Áreas (`AR-0002` Sucursal, `AR-0003` Gerencia), 3 Contactos 
 2. **`expediente_id` de una actuación solo se puede fijar al crearla (`POST /api/alquileres/actuaciones`), no editarla después** — la ruta de formalización guiada (`PATCH /api/alquileres/actuaciones/[id]`, RF-12 parcial) no incluye ese campo entre los editables. Esto es real: no hay forma hoy de vincular un expediente a una actuación que ya se creó sin expediente. El caso de ejemplo 3 quedó así a propósito, relabeled para mostrar el caso real en vez de forzarlo. Queda anotado para quien continúe RF-12 (no es parte de las 4 fases ya cerradas, es un gap menor dentro de lo ya construido).
 
 Sin cambios de código en esta tarea — solo datos reales en la planilla de Alquileres y esta documentación.
+
+---
+
+## 2026-10-04 — Fix: login real de Google fallaba con "iss (issuer) missing" en el preview
+
+Verificación en vivo del login real (prueba técnica (a), continuación): tras corregir la protección de Vercel y los redirect URI, el callback de Google llegaba pero fallaba siempre con `CallbackRouteError: response parameter "iss" (issuer) missing`, para cualquier cuenta.
+
+- **Causa:** Google ahora anuncia `authorization_response_iss_parameter_supported: true` en su descubrimiento OIDC; `oauth4webapi` exige entonces el parámetro `iss` en la respuesta de autorización, que Google no manda en este flujo. No depende de credenciales ni de qué cuenta se use — afecta a cualquier login real de Google con esta versión de las librerías, en cualquier deploy (CLM o Alquileres).
+- **Fix:** `src/auth.ts` — el provider `Google(...)` pasa a recibir `authorization`/`token`/`userinfo` explícitos. `@auth/core` solo hace el descubrimiento en vivo (el que trae el flag problemático) si esos dos últimos faltan — dándoselos, construye la metadata a mano sin ese flag, y el chequeo de `iss` nunca se dispara. Detalle completo en `docs/DECISIONES.md`.
+- **Pendiente:** portar el mismo fix a `C:\proyectos\clm-gaj-epe\src\auth.ts` (checkout principal, producción real) — anotado en `docs/PENDIENTES-HUMANOS.md` punto 13, fuera del alcance de este worktree.
+- `npm test`: 448/448. `npx tsc --noEmit`, `npm run lint`, `npm run build`: limpios. Falta confirmar en vivo contra el preview (requiere nuevo deploy).

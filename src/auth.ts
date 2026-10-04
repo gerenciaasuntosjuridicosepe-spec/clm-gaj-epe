@@ -47,8 +47,37 @@ function proveedorDevBypass(): Provider | null {
   });
 }
 
+/**
+ * Endpoints de Google explícitos (en vez de dejar que Auth.js los resuelva
+ * solo desde `issuer` vía descubrimiento OIDC en vivo contra
+ * `https://accounts.google.com/.well-known/openid-configuration`).
+ *
+ * Motivo (hallazgo 2026-10-04, visto en el preview de Alquileres con login
+ * real de Google, no con el bypass de desarrollo): el documento de
+ * descubrimiento de Google ahora anuncia
+ * `authorization_response_iss_parameter_supported: true` (RFC 9207), y
+ * `oauth4webapi` (dependencia de @auth/core) exige entonces que la
+ * respuesta de autorización de Google incluya el parámetro `iss` — que
+ * Google, en la práctica, no está mandando en este flujo. Resultado:
+ * `CallbackRouteError: response parameter "iss" (issuer) missing`,
+ * sin relación con credenciales ni con el email usado.
+ *
+ * `@auth/core` solo hace el descubrimiento en vivo si NO se le pasan
+ * `token`/`userinfo` explícitos (ver node_modules/@auth/core/lib/actions/
+ * callback/oauth/callback.js) — dándoselos acá, construye el objeto de
+ * metadata del servidor a mano (con `issuer`, sin el flag de arriba) y el
+ * chequeo de `iss` nunca se dispara. No cambia nada del flujo para el
+ * usuario; `issuer` se mantiene para que la validación del ID token siga
+ * funcionando igual.
+ */
+const googleProvider = Google({
+  authorization: "https://accounts.google.com/o/oauth2/v2/auth",
+  token: "https://oauth2.googleapis.com/token",
+  userinfo: "https://openidconnect.googleapis.com/v1/userinfo",
+});
+
 const devBypass = proveedorDevBypass();
-const providers = devBypass ? [Google, devBypass] : [Google];
+const providers = devBypass ? [googleProvider, devBypass] : [googleProvider];
 
 declare module "next-auth" {
   interface Session {

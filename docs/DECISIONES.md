@@ -268,3 +268,19 @@ Se construyó y probó `reglas/datos-plantilla.ts` (armado de los 10 valores + r
 **Consecuencia:** la Fase 5 (piloto con datos reales) deja de tener esta traba documental. Sigue sin estar empezada — es trabajo nuevo (cargar datos reales, correr la UAT de los casos D.7770/D.7761 si Carlos los aporta, etc.), fuera del alcance de las Fases 0-4 ya cerradas, a decidir por separado cuándo arrancar.
 
 **Verificado:** sin cambios de código — solo documentación (`docs/PENDIENTES-HUMANOS.md` punto 3, `docs/INFORME-FINAL.md`, `docs/PROGRESO.md`).
+
+---
+
+## 2026-10-04 — Fix real: login con Google fallaba en el preview con "iss (issuer) missing"
+
+**Qué:** probando el login REAL de Google en el preview de Vercel (no el bypass de desarrollo), el callback fallaba siempre con `CallbackRouteError: response parameter "iss" (issuer) missing`, sin relación con qué cuenta se usara.
+
+**Causa real, confirmada leyendo el código de la dependencia** (`node_modules/oauth4webapi/build/index.js`, función `validateAuthResponse`): el documento de descubrimiento OIDC de Google (`https://accounts.google.com/.well-known/openid-configuration`, que `@auth/core` consulta en vivo en cada login porque el provider `Google` por defecto solo declara `issuer`, no `token`/`userinfo`) ahora anuncia `authorization_response_iss_parameter_supported: true` (RFC 9207) — y Google, en la práctica, no manda el parámetro `iss` en la respuesta de autorización de este flujo. `oauth4webapi` exige ese parámetro apenas el servidor anuncia soporte, sin que haya ninguna opción pública en `@auth/core`/`next-auth` para desactivar el chequeo. Esto es un problema general de la librería con Google en este momento, no algo específico de este proyecto — pero no había forma de esperar a un fix upstream sin bloquear el login real.
+
+**Por qué no se vio antes:** el login real solo se había probado contra `localhost` (prueba técnica (a), 2026-10-03) — probablemente antes de que Google empezara a anunciar ese flag, o por alguna diferencia de caché de metadata entre esa sesión y esta. No es un problema de credenciales ni de redirect URI (ambos ya estaban bien configurados).
+
+**Fix aplicado:** `src/auth.ts` pasa `authorization`/`token`/`userinfo` explícitos al provider `Google(...)` en vez de dejar que se resuelvan solo por `issuer`. `@auth/core` solo hace el descubrimiento en vivo (el que trae el flag problemático) cuando NO se le dan `token`/`userinfo` — dándoselos, construye la metadata del servidor a mano, sin ese flag, y el chequeo nunca se dispara. `issuer` se mantiene igual, así que la validación del ID token no cambia.
+
+**Alcance:** este mismo problema existe también en el checkout principal (`C:\proyectos\clm-gaj-epe`, producción real del CLM) — usa el mismo `src/auth.ts` con el mismo patrón. No se tocó ese checkout desde este desarrollo (fuera de los límites de este worktree); el fix debería portarse ahí también antes de confiar en el login real de Google en producción. Anotado en `docs/PENDIENTES-HUMANOS.md`.
+
+**Verificado:** `npm test` 448/448, `npm run lint` y `npm run build` limpios. Pendiente de confirmar en vivo contra el preview real (requiere un nuevo deploy).

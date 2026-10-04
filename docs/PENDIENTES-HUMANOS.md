@@ -123,3 +123,9 @@ Se construyó y probó la parte que SÍ es posible sin Google: el ADMINISTRADOR 
 ---
 
 *(Este archivo se sigue completando a medida que avanza el desarrollo — ver docs/PROGRESO.md para el estado de cada fase.)*
+
+## 13. Portar el fix de login de Google ("iss missing") al checkout principal
+
+El worktree de Alquileres corrigió `src/auth.ts` (ver `docs/DECISIONES.md`, 2026-10-04) porque el login real de Google dejó de funcionar: Google ahora anuncia soporte de RFC 9207 en su descubrimiento OIDC y `oauth4webapi` exige el parámetro `iss` en la respuesta, que Google no manda en este flujo — rompe el login en CUALQUIER deploy de este código (CLM o Alquileres), no es algo específico de Alquileres.
+
+**Acción humana:** aplicar el mismo cambio en `C:\proyectos\clm-gaj-epe\src\auth.ts` (fuera del alcance de este worktree) — pasar `authorization`/`token`/`userinfo` explícitos al provider `Google(...)` en vez de depender solo de `issuer`. Sin esto, el login real de Google en la producción actual del CLM (`https://clm-gaj-epe-two.vercel.app`) va a fallar igual si alguien lo prueba.
