@@ -8,12 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/domain/kpi-card";
 import { Alert } from "@/components/domain/alert";
 import { SemaforoBarraAlquileres } from "@/components/domain/semaforo-barra-alquileres";
+import { VencimientosPorMesChart } from "@/components/domain/vencimientos-por-mes-chart";
 import {
   ETIQUETA_ALERTA,
   SEVERIDAD_ALERTA,
+  type ItemAlertasPorSector,
   type ItemColaTrabajo,
   type ItemLegitimoAbono,
   type ItemProximoVencimiento,
+  type ItemVencimientoPorMes,
   type ResumenDashboard,
 } from "@/lib/alquileres/reglas/dashboard";
 import { formatearFecha, formatearMonto } from "@/lib/alquileres/fechas";
@@ -28,6 +31,24 @@ export interface ProximoVencimientoConDatos extends ItemProximoVencimiento {
   inmuebleDomicilio: string;
   localidadNombre: string;
   sucursalNombre: string;
+}
+
+export interface AlertaPorSectorConNombre extends ItemAlertasPorSector {
+  sectorNombre: string;
+}
+
+export interface ItemFormalizadaSinEscaneado {
+  actuacionId: string;
+  inmuebleDomicilio: string;
+  /** Días desde que el log de cambios registró el pase a FORMALIZADA — null si no hay ese registro (dato cargado antes de RF-38 o directo en Sheets). */
+  dias: number | null;
+}
+
+function badgeDiasSinEscaneado(dias: number | null): "danger" | "warning" | "info" {
+  if (dias === null) return "info";
+  if (dias > 30) return "danger";
+  if (dias > 14) return "warning";
+  return "info";
 }
 
 const CLASE_BORDE_SEVERIDAD = {
@@ -61,11 +82,17 @@ export function AlquileresDashboardClient({
   colaDeTrabajo,
   legitimosAbono,
   proximosVencimientos,
+  alertasPorSector,
+  vencimientosPorMes,
+  formalizadasSinEscaneado,
 }: {
   resumen: ResumenDashboard;
   colaDeTrabajo: ItemColaTrabajo[];
   legitimosAbono: LegitimoAbonoConDomicilio[];
   proximosVencimientos: ProximoVencimientoConDatos[];
+  alertasPorSector: AlertaPorSectorConNombre[];
+  vencimientosPorMes: ItemVencimientoPorMes[];
+  formalizadasSinEscaneado: ItemFormalizadaSinEscaneado[];
 }) {
   const router = useRouter();
   const [filtro, setFiltro] = React.useState<FiltroAlerta>("TODAS");
@@ -109,6 +136,13 @@ export function AlquileresDashboardClient({
           { nivel: "rojo", label: "Vence ≤ 60 días o vencido", cantidad: resumen.vencenRojo },
         ]}
       />
+
+      <div className="mb-5 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-4.5 shadow-[var(--shadow-sm)]">
+        <div className="mb-2.5 text-[var(--text-sm)] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
+          Vencimientos por mes — próximos 12 meses
+        </div>
+        <VencimientosPorMesChart datos={vencimientosPorMes} />
+      </div>
 
       <div className="mb-5 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white shadow-[var(--shadow-sm)]">
         <div className="border-b border-[var(--color-border)] bg-[var(--overlay-brand-04)] px-4.5 py-3.5">
@@ -186,6 +220,66 @@ export function AlquileresDashboardClient({
           </table>
         )}
       </div>
+
+      <div className="mb-5 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white shadow-[var(--shadow-sm)]">
+        <div className="border-b border-[var(--color-border)] bg-[var(--overlay-brand-04)] px-4.5 py-3.5">
+          <h3 className="font-[var(--font-display)] text-[var(--text-md)] font-bold uppercase tracking-wide">Formalizada sin escaneado</h3>
+        </div>
+        {formalizadasSinEscaneado.length === 0 ? (
+          <p className="p-4.5 text-[var(--color-text-muted)]">Sin formalizadas pendientes de escaneado.</p>
+        ) : (
+          <table className="w-full text-[var(--text-base)]">
+            <thead>
+              <tr className="border-b-2 border-[var(--color-border)] bg-[var(--overlay-brand-04)] text-left text-[var(--text-xs)] font-bold uppercase text-[var(--color-text-secondary)]">
+                <th className="px-3.5 py-2.5">Actuación</th>
+                <th className="px-3.5 py-2.5">Inmueble</th>
+                <th className="px-3.5 py-2.5 text-right">Días sin escaneado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {formalizadasSinEscaneado.map((item) => (
+                <tr
+                  key={item.actuacionId}
+                  onClick={() => router.push(`/alquileres/actuaciones?id=${encodeURIComponent(item.actuacionId)}`)}
+                  className="cursor-pointer border-b border-[var(--color-border)] last:border-b-0 hover:bg-[var(--overlay-brand-04)]"
+                >
+                  <td className="px-3.5 py-2.5 font-mono text-[var(--text-sm)] text-brand-blue-700 underline">{item.actuacionId}</td>
+                  <td className="px-3.5 py-2.5">{item.inmuebleDomicilio}</td>
+                  <td className="px-3.5 py-2.5 text-right">
+                    <Badge variant={badgeDiasSinEscaneado(item.dias)}>
+                      {item.dias === null ? "sin dato" : `${item.dias} día${item.dias !== 1 ? "s" : ""}`}
+                    </Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {alertasPorSector.length > 0 && (
+        <div className="mb-5 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white shadow-[var(--shadow-sm)]">
+          <div className="border-b border-[var(--color-border)] bg-[var(--overlay-brand-04)] px-4.5 py-3.5">
+            <h3 className="font-[var(--font-display)] text-[var(--text-md)] font-bold uppercase tracking-wide">Alertas por sucursal / sector</h3>
+          </div>
+          <table className="w-full text-[var(--text-base)]">
+            <thead>
+              <tr className="border-b-2 border-[var(--color-border)] bg-[var(--overlay-brand-04)] text-left text-[var(--text-xs)] font-bold uppercase text-[var(--color-text-secondary)]">
+                <th className="px-3.5 py-2.5">Sucursal / sector</th>
+                <th className="px-3.5 py-2.5 text-right">Alertas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {alertasPorSector.map((item) => (
+                <tr key={item.sectorInteresadoAreaId} className="border-b border-[var(--color-border)] last:border-b-0">
+                  <td className="px-3.5 py-2.5">{item.sectorNombre}</td>
+                  <td className="px-3.5 py-2.5 text-right font-semibold">{item.cantidad}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white shadow-[var(--shadow-sm)]">
         <div className="border-b border-[var(--color-border)] bg-[var(--overlay-brand-04)] px-4.5 py-3.5">

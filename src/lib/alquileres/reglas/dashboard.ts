@@ -53,8 +53,14 @@ export interface ResumenDashboard {
 export interface ItemColaTrabajo {
   actuacionId: string;
   inmuebleId: string;
+  sectorInteresadoAreaId: string;
   alerta: "A1" | "A4" | "A5" | "A6";
   descripcion: string;
+}
+
+export interface ItemAlertasPorSector {
+  sectorInteresadoAreaId: string;
+  cantidad: number;
 }
 
 /** Nombre legible de cada alerta — un solo lugar, usado por el dashboard y la pantalla de Alertas (antes duplicado en ambos). */
@@ -92,6 +98,12 @@ export interface ItemProximoVencimiento {
   nivel: NivelSemaforo;
 }
 
+export interface ItemVencimientoPorMes {
+  /** yyyy-mm */
+  mes: string;
+  cantidad: number;
+}
+
 export interface ParametrosDashboard {
   actuaciones: Actuacion[];
   hitos: ActuacionHito[];
@@ -107,6 +119,8 @@ export function calcularDashboard(params: ParametrosDashboard): {
   colaDeTrabajo: ItemColaTrabajo[];
   legitimosAbonoEnCurso: ItemLegitimoAbono[];
   proximosVencimientos: ItemProximoVencimiento[];
+  alertasPorSector: ItemAlertasPorSector[];
+  vencimientosPorMes: ItemVencimientoPorMes[];
 } {
   const { actuaciones, hitos, documentos, cfgHitosTipo, hoy, alicuotaIva, umbrales = UMBRALES_SEMAFORO_DEFECTO } = params;
   const contratos = actuaciones.filter((a) => a.tipoActuacion === "CONTRATO" && a.activo);
@@ -152,6 +166,7 @@ export function calcularDashboard(params: ParametrosDashboard): {
       colaDeTrabajo.push({
         actuacionId: contrato.actuacionId,
         inmuebleId: contrato.inmuebleId,
+        sectorInteresadoAreaId: contrato.sectorInteresadoAreaId,
         alerta: "A1",
         descripcion: "Iniciar aviso: faltan 4 meses o menos para el vencimiento efectivo y no hay sucesora.",
       });
@@ -162,6 +177,7 @@ export function calcularDashboard(params: ParametrosDashboard): {
       colaDeTrabajo.push({
         actuacionId: contrato.actuacionId,
         inmuebleId: contrato.inmuebleId,
+        sectorInteresadoAreaId: contrato.sectorInteresadoAreaId,
         alerta: "A5",
         descripcion: "Ocupación sin contrato: vencido, sin sucesora ni legítimo abono en curso.",
       });
@@ -173,6 +189,7 @@ export function calcularDashboard(params: ParametrosDashboard): {
       colaDeTrabajo.push({
         actuacionId: contrato.actuacionId,
         inmuebleId: contrato.inmuebleId,
+        sectorInteresadoAreaId: contrato.sectorInteresadoAreaId,
         alerta: "A6",
         descripcion: "Formalizada sin el escaneado firmado adjunto.",
       });
@@ -198,6 +215,7 @@ export function calcularDashboard(params: ParametrosDashboard): {
       colaDeTrabajo.push({
         actuacionId: hito.actuacionId,
         inmuebleId: actuacion?.inmuebleId ?? "",
+        sectorInteresadoAreaId: actuacion?.sectorInteresadoAreaId ?? "",
         alerta: "A4",
         descripcion: `Hito "${nombreHito(hito.hitoId)}" atrasado (previsto ${hito.fechaPrevista}).`,
       });
@@ -215,6 +233,28 @@ export function calcularDashboard(params: ParametrosDashboard): {
 
   // Vista agregada (a pedido de Carlos, 2026-10-12): los 5 vencimientos más próximos, para verlos sin salir del dashboard.
   const top5ProximosVencimientos = proximosVencimientos.sort((a, b) => a.vencimiento.localeCompare(b.vencimiento)).slice(0, 5);
+
+  // Ranking de alertas por sucursal/sector (a pedido de Carlos, 2026-10-12): para ver de un vistazo si los problemas se concentran en alguno.
+  const conteoPorSector = new Map<string, number>();
+  for (const item of colaDeTrabajo) {
+    conteoPorSector.set(item.sectorInteresadoAreaId, (conteoPorSector.get(item.sectorInteresadoAreaId) ?? 0) + 1);
+  }
+  const alertasPorSector: ItemAlertasPorSector[] = Array.from(conteoPorSector, ([sectorInteresadoAreaId, cantidad]) => ({
+    sectorInteresadoAreaId,
+    cantidad,
+  })).sort((a, b) => b.cantidad - a.cantidad);
+
+  // Vencimientos por mes, próximos 12 meses (a pedido de Carlos, 2026-10-12) — carga de trabajo de renovación mes a mes, no solo 4 franjas gruesas.
+  const anioHoy = Number(hoy.slice(0, 4));
+  const mesHoy = Number(hoy.slice(5, 7)); // 1-12
+  const vencimientosPorMes: ItemVencimientoPorMes[] = Array.from({ length: 12 }, (_, i) => {
+    const total = mesHoy - 1 + i;
+    const anio = anioHoy + Math.floor(total / 12);
+    const mes = (total % 12) + 1;
+    const clave = `${anio}-${String(mes).padStart(2, "0")}`;
+    const cantidad = proximosVencimientos.filter((v) => v.vencimiento.slice(0, 7) === clave).length;
+    return { mes: clave, cantidad };
+  });
 
   return {
     resumen: {
@@ -235,5 +275,7 @@ export function calcularDashboard(params: ParametrosDashboard): {
     colaDeTrabajo,
     legitimosAbonoEnCurso,
     proximosVencimientos: top5ProximosVencimientos,
+    alertasPorSector,
+    vencimientosPorMes,
   };
 }

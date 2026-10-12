@@ -53,6 +53,28 @@ describe("calcularDashboard", () => {
     ]);
   });
 
+  it("vencimientosPorMes: 12 meses desde el mes de 'hoy', con conteo correcto y fuera de rango excluido", () => {
+    const actuaciones = ["2026-06-15", "2026-06-20", "2026-07-01", "2027-05-31", "2028-01-01"].map((fechaFin, i) =>
+      crearActuacion({ actuacionId: `ACT-M${i}`, fechaInicio: "2025-01-01", fechaFin })
+    );
+
+    const { vencimientosPorMes } = calcularDashboard({
+      actuaciones,
+      hitos: [],
+      documentos: [],
+      cfgHitosTipo: CFG,
+      hoy: HOY, // 2026-06-01
+      alicuotaIva: 21,
+    });
+
+    expect(vencimientosPorMes).toHaveLength(12);
+    expect(vencimientosPorMes[0]).toEqual({ mes: "2026-06", cantidad: 2 }); // dos vencimientos en junio
+    expect(vencimientosPorMes[1]).toEqual({ mes: "2026-07", cantidad: 1 });
+    expect(vencimientosPorMes[11]).toEqual({ mes: "2027-05", cantidad: 1 }); // último mes de la ventana de 12
+    const total = vencimientosPorMes.reduce((acc, m) => acc + m.cantidad, 0);
+    expect(total).toBe(4); // el de 2028 queda afuera de la ventana de 12 meses
+  });
+
   it("T9/T10: A5 se enciende para un vencido sin sucesora, se apaga con NO_RENOVADO", () => {
     const vencidoSinSucesora = crearActuacion({ actuacionId: "ACT-0001", fechaFin: "2020-01-01", estadoActuacion: "CERRADA" });
     const vencidoNoRenovado = crearActuacion({ actuacionId: "ACT-0002", fechaFin: "2020-01-01", estadoActuacion: "NO_RENOVADO" });
@@ -122,6 +144,26 @@ describe("calcularDashboard", () => {
     const item = legitimosAbonoEnCurso.find((i) => i.actuacionId === "ACT-LA3")!;
     expect(item.dias).toBe(30); // fecha_inicio -> fecha_fin, no hasta "hoy" (15/01)
     expect(item.tieneFechaFin).toBe(true);
+  });
+
+  it("alertasPorSector: rankea los sectores con más alertas, de mayor a menor", () => {
+    const a5Sector1 = crearActuacion({ actuacionId: "ACT-A5", fechaFin: "2020-01-01", estadoActuacion: "CERRADA", sectorInteresadoAreaId: "AR-01" });
+    const a1Sector1 = crearActuacion({ actuacionId: "ACT-A1", fechaFin: "2026-09-01", estadoActuacion: "EN_TRAMITE", sectorInteresadoAreaId: "AR-01" });
+    const a6Sector2 = crearActuacion({ actuacionId: "ACT-A6", estadoActuacion: "FORMALIZADA", sectorInteresadoAreaId: "AR-02" });
+
+    const { alertasPorSector } = calcularDashboard({
+      actuaciones: [a5Sector1, a1Sector1, a6Sector2],
+      hitos: [],
+      documentos: [],
+      cfgHitosTipo: CFG,
+      hoy: HOY,
+      alicuotaIva: 21,
+    });
+
+    expect(alertasPorSector).toEqual([
+      { sectorInteresadoAreaId: "AR-01", cantidad: 2 },
+      { sectorInteresadoAreaId: "AR-02", cantidad: 1 },
+    ]);
   });
 
   it("A4: cuenta un hito atrasado y lo agrega a la cola de trabajo", () => {

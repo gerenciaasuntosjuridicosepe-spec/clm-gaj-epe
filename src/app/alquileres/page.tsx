@@ -9,6 +9,7 @@ import { getRepositorioInmuebles } from "@/lib/alquileres/datos/inmuebles";
 import { getRepositorioLocalidades } from "@/lib/alquileres/datos/localidades";
 import { getRepositorioAreas } from "@/lib/alquileres/datos/areas";
 import { obtenerParametro } from "@/lib/alquileres/datos/parametros";
+import { listarLogCambios } from "@/lib/alquileres/repositorio/log-cambios";
 import { calcularDashboard } from "@/lib/alquileres/reglas/dashboard";
 import { alertaA8SinRespaldoReciente } from "@/lib/alquileres/reglas/alertas";
 import { CFG_HITOS_TIPO_SEED } from "@/lib/alquileres/catalogos/hitos-seed";
@@ -30,17 +31,18 @@ export default async function AlquileresDashboardPage() {
   const session = await auth();
   const esAdministrador = session?.user?.rolAlquileres === "ADMINISTRADOR";
 
-  const [actuaciones, hitos, documentos, inmuebles, localidades, areas, parametroRespaldo] = await Promise.all([
+  const [actuaciones, hitos, documentos, inmuebles, localidades, areas, logCambios, parametroRespaldo] = await Promise.all([
     getRepositorioActuaciones().listar(),
     getRepositorioActuacionHitos().listar(),
     getRepositorioDocumentos().listar(),
     getRepositorioInmuebles().listar(),
     getRepositorioLocalidades().listar(),
     getRepositorioAreas().listar(),
+    listarLogCambios(),
     esAdministrador ? obtenerParametro("ultimo_respaldo_en") : Promise.resolve(undefined),
   ]);
 
-  const { resumen, colaDeTrabajo, legitimosAbonoEnCurso, proximosVencimientos } = calcularDashboard({
+  const { resumen, colaDeTrabajo, legitimosAbonoEnCurso, proximosVencimientos, alertasPorSector, vencimientosPorMes } = calcularDashboard({
     actuaciones,
     hitos,
     documentos,
@@ -66,6 +68,30 @@ export default async function AlquileresDashboardPage() {
     };
   });
 
+  const alertasPorSectorConNombre = alertasPorSector.map((item) => ({
+    ...item,
+    sectorNombre: areas.find((a) => a.areaId === item.sectorInteresadoAreaId)?.nombre ?? item.sectorInteresadoAreaId,
+  }));
+
+  // RF-38/M9: el cambio a FORMALIZADA ya queda en LOG_CAMBIOS solo (ver Procesos de renovación) — se reusa acá para
+  // saber hace cuántos días quedó formalizada sin el escaneado, sin inventar una fecha nueva.
+  const formalizadasSinEscaneadoConDatos = colaDeTrabajo
+    .filter((item) => item.alerta === "A6")
+    .map((item) => {
+      const cambiosAFormalizada = logCambios
+        .filter(
+          (l) => l.hoja === "ACTUACIONES" && l.registroId === item.actuacionId && l.campo === "estadoActuacion" && l.valorNuevo === "FORMALIZADA"
+        )
+        .sort((a, b) => b.fechaHora.localeCompare(a.fechaHora));
+      const fechaFormalizada = cambiosAFormalizada[0]?.fechaHora;
+      return {
+        actuacionId: item.actuacionId,
+        inmuebleDomicilio: inmuebles.find((i) => i.inmuebleId === item.inmuebleId)?.domicilio ?? item.inmuebleId,
+        dias: fechaFormalizada ? diferenciaDias(fechaFormalizada.slice(0, 10), hoy()) : null,
+      };
+    })
+    .sort((a, b) => (b.dias ?? -1) - (a.dias ?? -1));
+
   const ultimoRespaldoEn = parametroRespaldo?.valor;
   const diasDesdeUltimoRespaldo = ultimoRespaldoEn ? diferenciaDias(ultimoRespaldoEn, hoy()) : undefined;
 
@@ -89,6 +115,9 @@ export default async function AlquileresDashboardPage() {
         colaDeTrabajo={colaDeTrabajo}
         legitimosAbono={legitimosAbonoConDomicilio}
         proximosVencimientos={proximosVencimientosConDatos}
+        alertasPorSector={alertasPorSectorConNombre}
+        vencimientosPorMes={vencimientosPorMes}
+        formalizadasSinEscaneado={formalizadasSinEscaneadoConDatos}
       />
     </AppShell>
   );
