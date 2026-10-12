@@ -13,7 +13,7 @@
  * cantidad de filas de la lista") exige coherencia con los datos reales,
  * no un número inventado.
  */
-import { diferenciaDias, nivelSemaforo, UMBRALES_SEMAFORO_DEFECTO, type UmbralesSemaforo } from "../fechas";
+import { diferenciaDias, nivelSemaforo, UMBRALES_SEMAFORO_DEFECTO, type NivelSemaforo, type UmbralesSemaforo } from "../fechas";
 import type { Actuacion, ActuacionHito, DocumentoAlquiler } from "../tipos";
 import { vencimientoEfectivo } from "./r15-vencimiento-efectivo";
 import { situacionVigencia, tieneSucesoraActiva } from "./campos-calculados";
@@ -24,6 +24,14 @@ import {
   alertaA5OcupacionSinContrato,
   alertaA6FormalizadaSinEscaneado,
 } from "./alertas";
+// Excepción puntual: las `reglas/*` no suelen importar `catalogos/*-seed`
+// directamente (los catálogos se pasan como parámetro, para poder probar
+// con datos ficticios — ver `cfgHitosTipo` más abajo). `nombreHito` es la
+// excepción: no participa de ningún cálculo, solo mejora la lectura de un
+// texto (en vez de "Hito H-02 atrasado", "Hito Respuesta de la sucursal
+// atrasado") — a pedido de Carlos, 2026-10-12, para no mostrar códigos
+// crudos en ninguna pantalla.
+import { nombreHito } from "../catalogos/hitos-seed";
 
 export interface ResumenDashboard {
   contratosVigentes: number;
@@ -49,6 +57,41 @@ export interface ItemColaTrabajo {
   descripcion: string;
 }
 
+/** Nombre legible de cada alerta — un solo lugar, usado por el dashboard y la pantalla de Alertas (antes duplicado en ambos). */
+export const ETIQUETA_ALERTA: Record<ItemColaTrabajo["alerta"], string> = {
+  A1: "Iniciar aviso",
+  A4: "Hito atrasado",
+  A5: "Ocupación sin contrato",
+  A6: "Formalizada sin escaneado",
+};
+
+/** Severidad visual de cada alerta — PRD v1 sección 8: "A5, A1 en rojo, A4 ... A6" (menor). */
+export const SEVERIDAD_ALERTA: Record<ItemColaTrabajo["alerta"], "danger" | "warning" | "info"> = {
+  A5: "danger",
+  A1: "danger",
+  A4: "warning",
+  A6: "info",
+};
+
+export interface ItemLegitimoAbono {
+  actuacionId: string;
+  inmuebleId: string;
+  fechaInicio?: string;
+  fechaFin?: string;
+  /** Días desde fecha_inicio hasta fecha_fin (si ya está definida) o hasta hoy (si sigue abierto) — null si no hay fecha_inicio cargada. */
+  dias: number | null;
+  /** true si `dias` cuenta hasta fecha_fin; false si sigue abierto (sin fecha_fin) y cuenta hasta hoy. */
+  tieneFechaFin: boolean;
+}
+
+export interface ItemProximoVencimiento {
+  actuacionId: string;
+  inmuebleId: string;
+  sectorInteresadoAreaId: string;
+  vencimiento: string;
+  nivel: NivelSemaforo;
+}
+
 export interface ParametrosDashboard {
   actuaciones: Actuacion[];
   hitos: ActuacionHito[];
@@ -59,10 +102,16 @@ export interface ParametrosDashboard {
   umbrales?: UmbralesSemaforo;
 }
 
-export function calcularDashboard(params: ParametrosDashboard): { resumen: ResumenDashboard; colaDeTrabajo: ItemColaTrabajo[] } {
+export function calcularDashboard(params: ParametrosDashboard): {
+  resumen: ResumenDashboard;
+  colaDeTrabajo: ItemColaTrabajo[];
+  legitimosAbonoEnCurso: ItemLegitimoAbono[];
+  proximosVencimientos: ItemProximoVencimiento[];
+} {
   const { actuaciones, hitos, documentos, cfgHitosTipo, hoy, alicuotaIva, umbrales = UMBRALES_SEMAFORO_DEFECTO } = params;
   const contratos = actuaciones.filter((a) => a.tipoActuacion === "CONTRATO" && a.activo);
   const colaDeTrabajo: ItemColaTrabajo[] = [];
+  const proximosVencimientos: ItemProximoVencimiento[] = [];
 
   let contratosVigentes = 0;
   let vencenVerde = 0;
@@ -86,6 +135,13 @@ export function calcularDashboard(params: ParametrosDashboard): { resumen: Resum
         else if (nivel === "amarillo") vencenAmarillo++;
         else if (nivel === "naranja") vencenNaranja++;
         else if (nivel === "rojo") vencenRojo++;
+        proximosVencimientos.push({
+          actuacionId: contrato.actuacionId,
+          inmuebleId: contrato.inmuebleId,
+          sectorInteresadoAreaId: contrato.sectorInteresadoAreaId,
+          vencimiento: venc,
+          nivel,
+        });
       }
     }
 
@@ -123,9 +179,14 @@ export function calcularDashboard(params: ParametrosDashboard): { resumen: Resum
     }
   }
 
-  const legitimoAbonoEnCurso = actuaciones.filter(
-    (a) => a.tipoActuacion === "LEGITIMO_ABONO" && a.activo && (!a.fechaFin || a.fechaFin >= hoy)
-  ).length;
+  const legitimosAbonoEnCurso: ItemLegitimoAbono[] = actuaciones
+    .filter((a) => a.tipoActuacion === "LEGITIMO_ABONO" && a.activo && (!a.fechaFin || a.fechaFin >= hoy))
+    .map((a) => {
+      const tieneFechaFin = Boolean(a.fechaFin);
+      const dias = a.fechaInicio ? diferenciaDias(a.fechaInicio, tieneFechaFin ? a.fechaFin! : hoy) : null;
+      return { actuacionId: a.actuacionId, inmuebleId: a.inmuebleId, fechaInicio: a.fechaInicio, fechaFin: a.fechaFin, dias, tieneFechaFin };
+    });
+  const legitimoAbonoEnCurso = legitimosAbonoEnCurso.length;
 
   let hitosAtrasados = 0;
   for (const hito of hitos) {
@@ -138,7 +199,7 @@ export function calcularDashboard(params: ParametrosDashboard): { resumen: Resum
         actuacionId: hito.actuacionId,
         inmuebleId: actuacion?.inmuebleId ?? "",
         alerta: "A4",
-        descripcion: `Hito ${hito.hitoId} atrasado (previsto ${hito.fechaPrevista}).`,
+        descripcion: `Hito "${nombreHito(hito.hitoId)}" atrasado (previsto ${hito.fechaPrevista}).`,
       });
     }
   }
@@ -151,6 +212,9 @@ export function calcularDashboard(params: ParametrosDashboard): { resumen: Resum
   // Cola de trabajo ordenada por urgencia: A5 y A1 primero (PRD v1 sección 8: "A5, A1 en rojo, A4 y A2, A3, A6").
   const ORDEN_URGENCIA: Record<ItemColaTrabajo["alerta"], number> = { A5: 0, A1: 1, A4: 2, A6: 3 };
   colaDeTrabajo.sort((a, b) => ORDEN_URGENCIA[a.alerta] - ORDEN_URGENCIA[b.alerta]);
+
+  // Vista agregada (a pedido de Carlos, 2026-10-12): los 5 vencimientos más próximos, para verlos sin salir del dashboard.
+  const top5ProximosVencimientos = proximosVencimientos.sort((a, b) => a.vencimiento.localeCompare(b.vencimiento)).slice(0, 5);
 
   return {
     resumen: {
@@ -169,5 +233,7 @@ export function calcularDashboard(params: ParametrosDashboard): { resumen: Resum
       contratosSinDatoIva,
     },
     colaDeTrabajo,
+    legitimosAbonoEnCurso,
+    proximosVencimientos: top5ProximosVencimientos,
   };
 }

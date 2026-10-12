@@ -29,6 +29,30 @@ describe("calcularDashboard", () => {
     expect(resumen.vencenVerde).toBe(1);
   });
 
+  it("proximosVencimientos: los 5 más próximos, ordenados ascendente", () => {
+    const actuaciones = ["2026-07-01", "2026-06-15", "2026-12-31", "2026-08-01", "2026-09-01", "2026-10-01"].map((fechaFin, i) =>
+      crearActuacion({ actuacionId: `ACT-000${i}`, fechaInicio: "2025-01-01", fechaFin })
+    );
+
+    const { proximosVencimientos } = calcularDashboard({
+      actuaciones,
+      hitos: [],
+      documentos: [],
+      cfgHitosTipo: CFG,
+      hoy: HOY,
+      alicuotaIva: 21,
+    });
+
+    expect(proximosVencimientos).toHaveLength(5);
+    expect(proximosVencimientos.map((p) => p.vencimiento)).toEqual([
+      "2026-06-15",
+      "2026-07-01",
+      "2026-08-01",
+      "2026-09-01",
+      "2026-10-01",
+    ]);
+  });
+
   it("T9/T10: A5 se enciende para un vencido sin sucesora, se apaga con NO_RENOVADO", () => {
     const vencidoSinSucesora = crearActuacion({ actuacionId: "ACT-0001", fechaFin: "2020-01-01", estadoActuacion: "CERRADA" });
     const vencidoNoRenovado = crearActuacion({ actuacionId: "ACT-0002", fechaFin: "2020-01-01", estadoActuacion: "NO_RENOVADO" });
@@ -57,6 +81,47 @@ describe("calcularDashboard", () => {
       alicuotaIva: 21,
     });
     expect(resumen.legitimoAbonoEnCurso).toBe(1);
+  });
+
+  it("legítimo abono abierto: días = desde fecha_inicio hasta hoy, sin fecha_inicio = null", () => {
+    const conInicio = crearActuacion({ actuacionId: "ACT-LA1", tipoActuacion: "LEGITIMO_ABONO", fechaInicio: "2026-05-01" });
+    const sinInicio = crearActuacion({ actuacionId: "ACT-LA2", tipoActuacion: "LEGITIMO_ABONO", fechaInicio: undefined });
+    const { legitimosAbonoEnCurso } = calcularDashboard({
+      actuaciones: [conInicio, sinInicio],
+      hitos: [],
+      documentos: [],
+      cfgHitosTipo: CFG,
+      hoy: HOY, // 2026-06-01
+      alicuotaIva: 21,
+    });
+
+    const item1 = legitimosAbonoEnCurso.find((i) => i.actuacionId === "ACT-LA1")!;
+    expect(item1.dias).toBe(31); // 01/05 -> 01/06
+    expect(item1.tieneFechaFin).toBe(false);
+
+    const item2 = legitimosAbonoEnCurso.find((i) => i.actuacionId === "ACT-LA2")!;
+    expect(item2.dias).toBeNull();
+  });
+
+  it("legítimo abono con fecha_fin definida (futura): días = fecha_inicio a fecha_fin, no hasta hoy", () => {
+    const conFechaFin = crearActuacion({
+      actuacionId: "ACT-LA3",
+      tipoActuacion: "LEGITIMO_ABONO",
+      fechaInicio: "2026-01-01",
+      fechaFin: "2026-01-31", // en el futuro respecto del "hoy" de esta prueba (15/01) — todavía en curso
+    });
+    const { legitimosAbonoEnCurso } = calcularDashboard({
+      actuaciones: [conFechaFin],
+      hitos: [],
+      documentos: [],
+      cfgHitosTipo: CFG,
+      hoy: "2026-01-15",
+      alicuotaIva: 21,
+    });
+
+    const item = legitimosAbonoEnCurso.find((i) => i.actuacionId === "ACT-LA3")!;
+    expect(item.dias).toBe(30); // fecha_inicio -> fecha_fin, no hasta "hoy" (15/01)
+    expect(item.tieneFechaFin).toBe(true);
   });
 
   it("A4: cuenta un hito atrasado y lo agrega a la cola de trabajo", () => {

@@ -1,14 +1,14 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { ItemColaTrabajo } from "@/lib/alquileres/reglas/dashboard";
+import { cn } from "@/lib/utils";
+import { ETIQUETA_ALERTA, SEVERIDAD_ALERTA, type ItemColaTrabajo } from "@/lib/alquileres/reglas/dashboard";
 
-const ETIQUETA_ALERTA: Record<ItemColaTrabajo["alerta"], string> = {
-  A1: "Iniciar aviso",
-  A4: "Hito atrasado",
-  A5: "Ocupación sin contrato",
-  A6: "Formalizada sin escaneado",
-};
+const CLASE_BORDE_SEVERIDAD = {
+  danger: "border-l-[var(--color-danger)]",
+  warning: "border-l-[var(--color-warning)]",
+  info: "border-l-[var(--color-info)]",
+} as const;
 
 type Filtro = "TODAS" | ItemColaTrabajo["alerta"];
 
@@ -36,14 +36,16 @@ export function AlquileresAlertasClient({ colaDeTrabajo }: { colaDeTrabajo: Item
         </Button>
         {(Object.keys(ETIQUETA_ALERTA) as ItemColaTrabajo["alerta"][]).map((tipo) => (
           <Button key={tipo} variant={filtro === tipo ? "primary" : "ghost"} size="sm" onClick={() => setFiltro(tipo)}>
-            {tipo} · {ETIQUETA_ALERTA[tipo]} ({porTipo(tipo)})
+            {ETIQUETA_ALERTA[tipo]} ({porTipo(tipo)})
           </Button>
         ))}
       </div>
 
       <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white shadow-[var(--shadow-sm)]">
         {visibles.length === 0 ? (
-          <p className="p-4.5 text-[var(--color-text-muted)]">Sin alertas{filtro !== "TODAS" ? ` de tipo ${filtro}` : ""}.</p>
+          <p className="p-4.5 text-[var(--color-text-muted)]">
+            Sin alertas{filtro !== "TODAS" ? ` de "${ETIQUETA_ALERTA[filtro]}"` : ""}.
+          </p>
         ) : (
           <table className="w-full text-[var(--text-base)]">
             <thead>
@@ -56,12 +58,16 @@ export function AlquileresAlertasClient({ colaDeTrabajo }: { colaDeTrabajo: Item
             </thead>
             <tbody>
               {visibles.map((item, i) => (
-                <tr key={`${item.actuacionId}-${item.alerta}-${i}`} className="border-b border-[var(--color-border)] last:border-b-0">
+                <tr
+                  key={`${item.actuacionId}-${item.alerta}-${i}`}
+                  className={cn(
+                    "border-b border-b-[var(--color-border)] border-l-4 last:border-b-0",
+                    CLASE_BORDE_SEVERIDAD[SEVERIDAD_ALERTA[item.alerta]]
+                  )}
+                >
                   <td className="px-3.5 py-2.5 font-mono text-[var(--text-sm)]">{item.actuacionId}</td>
                   <td className="px-3.5 py-2.5">{item.inmuebleId}</td>
-                  <td className="px-3.5 py-2.5 font-semibold">
-                    {item.alerta} · {ETIQUETA_ALERTA[item.alerta]}
-                  </td>
+                  <td className="px-3.5 py-2.5 font-semibold">{ETIQUETA_ALERTA[item.alerta]}</td>
                   <td className="px-3.5 py-2.5 text-[var(--color-text-secondary)]">{item.descripcion}</td>
                 </tr>
               ))}

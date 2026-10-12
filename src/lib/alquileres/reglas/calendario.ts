@@ -19,6 +19,10 @@ import { diferenciaDias, nivelSemaforo, UMBRALES_SEMAFORO_DEFECTO, type NivelSem
 import type { Actuacion, ActuacionHito } from "../tipos";
 import { vencimientoEfectivo } from "./r15-vencimiento-efectivo";
 import { esTerminal } from "./alertas";
+// Misma excepción documentada en dashboard.ts: nombreHito no participa de
+// ningún cálculo, solo evita mostrar el código crudo del hito (H-02) en la
+// descripción del evento de calendario.
+import { nombreHito } from "../catalogos/hitos-seed";
 
 export type TipoEventoCalendarioAlquileres = "vencimiento" | "hito";
 
@@ -70,7 +74,7 @@ export function construirEventosCalendarioAlquileres(
       tipoEvento: "hito",
       actuacionId: hito.actuacionId,
       inmuebleId: actuacion?.inmuebleId ?? "",
-      descripcion: `Hito ${hito.hitoId} previsto.`,
+      descripcion: `Hito "${nombreHito(hito.hitoId)}" previsto.`,
     });
   }
 

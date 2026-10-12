@@ -5,6 +5,9 @@ import { auth } from "@/auth";
 import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioActuacionHitos } from "@/lib/alquileres/datos/actuacion-hitos";
 import { getRepositorioDocumentos } from "@/lib/alquileres/datos/documentos";
+import { getRepositorioInmuebles } from "@/lib/alquileres/datos/inmuebles";
+import { getRepositorioLocalidades } from "@/lib/alquileres/datos/localidades";
+import { getRepositorioAreas } from "@/lib/alquileres/datos/areas";
 import { obtenerParametro } from "@/lib/alquileres/datos/parametros";
 import { calcularDashboard } from "@/lib/alquileres/reglas/dashboard";
 import { alertaA8SinRespaldoReciente } from "@/lib/alquileres/reglas/alertas";
@@ -27,20 +30,40 @@ export default async function AlquileresDashboardPage() {
   const session = await auth();
   const esAdministrador = session?.user?.rolAlquileres === "ADMINISTRADOR";
 
-  const [actuaciones, hitos, documentos, parametroRespaldo] = await Promise.all([
+  const [actuaciones, hitos, documentos, inmuebles, localidades, areas, parametroRespaldo] = await Promise.all([
     getRepositorioActuaciones().listar(),
     getRepositorioActuacionHitos().listar(),
     getRepositorioDocumentos().listar(),
+    getRepositorioInmuebles().listar(),
+    getRepositorioLocalidades().listar(),
+    getRepositorioAreas().listar(),
     esAdministrador ? obtenerParametro("ultimo_respaldo_en") : Promise.resolve(undefined),
   ]);
 
-  const { resumen, colaDeTrabajo } = calcularDashboard({
+  const { resumen, colaDeTrabajo, legitimosAbonoEnCurso, proximosVencimientos } = calcularDashboard({
     actuaciones,
     hitos,
     documentos,
     cfgHitosTipo: CFG_HITOS_TIPO_SEED,
     hoy: hoy(),
     alicuotaIva: numeroParametro(PARAMETROS_SEED, "alicuota_iva", 21),
+  });
+
+  const legitimosAbonoConDomicilio = legitimosAbonoEnCurso.map((item) => ({
+    ...item,
+    inmuebleDomicilio: inmuebles.find((i) => i.inmuebleId === item.inmuebleId)?.domicilio ?? item.inmuebleId,
+  }));
+
+  const proximosVencimientosConDatos = proximosVencimientos.map((item) => {
+    const inmueble = inmuebles.find((i) => i.inmuebleId === item.inmuebleId);
+    const localidad = inmueble ? localidades.find((l) => l.localidadId === inmueble.localidadId) : undefined;
+    const area = areas.find((a) => a.areaId === item.sectorInteresadoAreaId);
+    return {
+      ...item,
+      inmuebleDomicilio: inmueble?.domicilio ?? item.inmuebleId,
+      localidadNombre: localidad?.nombre ?? "—",
+      sucursalNombre: area?.nombre ?? "—",
+    };
   });
 
   const ultimoRespaldoEn = parametroRespaldo?.valor;
@@ -61,7 +84,12 @@ export default async function AlquileresDashboardPage() {
         />
       )}
 
-      <AlquileresDashboardClient resumen={resumen} colaDeTrabajo={colaDeTrabajo} />
+      <AlquileresDashboardClient
+        resumen={resumen}
+        colaDeTrabajo={colaDeTrabajo}
+        legitimosAbono={legitimosAbonoConDomicilio}
+        proximosVencimientos={proximosVencimientosConDatos}
+      />
     </AppShell>
   );
 }

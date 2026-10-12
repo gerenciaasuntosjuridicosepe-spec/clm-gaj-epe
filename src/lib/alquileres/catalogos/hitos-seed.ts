@@ -29,6 +29,16 @@ export const HITOS_SEED: SemillaHito[] = [
   { hitoId: "H-20", codigo: "ARCHIVO", nombre: "Archivo del trámite", etapa: ETAPA_A_COMPLETAR, orden: 8 },
 ] as const satisfies SemillaHito[];
 
+/**
+ * Nombre legible de un hito (a pedido de Carlos, 2026-10-12: en toda la app
+ * se muestra el nombre, no el código H-NN, para mejor lectura). Si el hito
+ * no está en la semilla (H-06 a H-14, H-16 a H-19 — ver comentario de
+ * arriba), devuelve el código tal cual: nunca se inventa un nombre.
+ */
+export function nombreHito(hitoId: string): string {
+  return HITOS_SEED.find((h) => h.hitoId === hitoId)?.nombre ?? hitoId;
+}
+
 export type SemillaCfgHitoTipo = Pick<
   CfgHitoTipo,
   "cfgId" | "tipoActuacion" | "hitoId" | "plazoValor" | "plazoUnidad" | "computoDias" | "referencia" | "hitoReferenciaId" | "generaAlerta" | "orden"

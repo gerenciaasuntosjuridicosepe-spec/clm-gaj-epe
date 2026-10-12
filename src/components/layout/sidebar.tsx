@@ -15,12 +15,14 @@ import {
   ShieldCheck,
   Users,
   History,
+  KeyRound,
   Building2,
   Folder,
   FileSignature,
   UserRound,
   LayoutDashboard,
   BarChart3,
+  Repeat,
 } from "lucide-react";
 import { NAV_GROUPS, NavItem } from "@/lib/navegacion";
 import { NAV_GROUPS_ALQUILERES, NavItemAlquileres } from "@/lib/alquileres/navegacion";
@@ -38,6 +40,7 @@ const ICONS: Record<NavItem["icon"], React.ComponentType<{ size?: number }>> = {
   tiposGarantia: ShieldCheck,
   usuarios: Users,
   auditoria: History,
+  rolesAccesos: KeyRound,
 };
 
 const ICONS_ALQUILERES: Record<NavItemAlquileres["icon"], React.ComponentType<{ size?: number }>> = {
@@ -49,6 +52,7 @@ const ICONS_ALQUILERES: Record<NavItemAlquileres["icon"], React.ComponentType<{ 
   calendario: CalendarDays,
   alertas: BellRing,
   reportes: BarChart3,
+  renovaciones: Repeat,
 };
 
 function EnlaceNav({

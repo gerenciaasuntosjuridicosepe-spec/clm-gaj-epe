@@ -100,3 +100,17 @@ export function alertaA8SinRespaldoReciente(ultimoRespaldoEn: string | undefined
   const dias = diferenciaDias(ultimoRespaldoEn.slice(0, 10), hoy);
   return dias > diasAlertaRespaldo;
 }
+
+/**
+ * "Proceso de renovación en curso" (vista agregada a pedido, no es un hallazgo
+ * A1-A8 del PRD): un CONTRATO ya empezó su trámite de renovación si dejó
+ * PENDIENTE_AVISO, o si sigue en PENDIENTE_AVISO pero ya corresponde iniciar
+ * el aviso (A1). Antes de eso (contrato recién firmado, lejos de vencer) no
+ * hay nada que mostrar en esa vista — se excluye a propósito.
+ */
+export function estaEnProcesoRenovacion(contrato: Actuacion, todasLasActuaciones: Actuacion[], hoy: string): boolean {
+  if (contrato.tipoActuacion !== "CONTRATO") return false;
+  if (esTerminal(contrato.estadoActuacion)) return false;
+  if (contrato.estadoActuacion !== "PENDIENTE_AVISO") return true;
+  return alertaA1IniciarAviso(contrato, todasLasActuaciones, hoy);
+}

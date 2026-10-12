@@ -2,7 +2,7 @@
 export interface NavItem {
   href: string;
   label: string;
-  icon: "bandeja" | "alertas" | "calendario" | "contratos" | "nueva" | "sectores" | "tipos" | "tiposAnotacion" | "tiposGarantia" | "usuarios" | "auditoria";
+  icon: "bandeja" | "alertas" | "calendario" | "contratos" | "nueva" | "sectores" | "tipos" | "tiposAnotacion" | "tiposGarantia" | "usuarios" | "auditoria" | "rolesAccesos";
   badge?: number;
 }
 
@@ -34,6 +34,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/admin/tipos-anotacion", label: "Tipos de anotación", icon: "tiposAnotacion" },
       { href: "/admin/tipos-garantia", label: "Tipos de garantía", icon: "tiposGarantia" },
       { href: "/admin/usuarios", label: "Usuarios y roles", icon: "usuarios" },
+      { href: "/admin/roles-accesos", label: "Roles y accesos", icon: "rolesAccesos" },
       { href: "/admin/auditoria", label: "Auditoría", icon: "auditoria" },
     ],
   },

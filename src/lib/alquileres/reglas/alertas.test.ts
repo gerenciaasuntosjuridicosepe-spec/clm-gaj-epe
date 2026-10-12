@@ -8,6 +8,7 @@ import {
   alertaA6FormalizadaSinEscaneado,
   alertaA7FeriadosSinCargar,
   alertaA8SinRespaldoReciente,
+  estaEnProcesoRenovacion,
 } from "./alertas";
 import { crearActuacion, crearActuacionHito } from "../test-fixtures";
 
@@ -135,5 +136,36 @@ describe("A8 — sin respaldo reciente (T25)", () => {
   });
   it("se enciende si nunca hubo respaldo", () => {
     expect(alertaA8SinRespaldoReciente(undefined, "2026-01-10", 7)).toBe(true);
+  });
+});
+
+describe("estaEnProcesoRenovacion — vista agregada de procesos en curso", () => {
+  it("no entra si está lejos de vencer y sigue en PENDIENTE_AVISO (A1 todavía no se encendió)", () => {
+    const c = crearActuacion({ actuacionId: "ACT-1", fechaFin: "2026-12-31", estadoActuacion: "PENDIENTE_AVISO" });
+    expect(estaEnProcesoRenovacion(c, [c], "2026-01-01")).toBe(false);
+  });
+
+  it("entra en PENDIENTE_AVISO en cuanto se encendería A1 (4 meses o menos, sin sucesora)", () => {
+    const c = crearActuacion({ actuacionId: "ACT-1", fechaFin: "2026-12-31", estadoActuacion: "PENDIENTE_AVISO" });
+    expect(estaEnProcesoRenovacion(c, [c], "2026-09-01")).toBe(true);
+  });
+
+  it("entra en AVISO_ENVIADO/EN_TRAMITE/FORMALIZADA sin importar cuánto falte para el vencimiento", () => {
+    for (const estado of ["AVISO_ENVIADO", "EN_TRAMITE", "FORMALIZADA"] as const) {
+      const c = crearActuacion({ actuacionId: "ACT-1", fechaFin: "2030-12-31", estadoActuacion: estado });
+      expect(estaEnProcesoRenovacion(c, [c], "2026-01-01")).toBe(true);
+    }
+  });
+
+  it("no entra si ya es terminal (CERRADA, DESISTIDA, NO_RENOVADO, ANULADA)", () => {
+    for (const estado of ["CERRADA", "DESISTIDA", "NO_RENOVADO", "ANULADA"] as const) {
+      const c = crearActuacion({ actuacionId: "ACT-1", fechaFin: "2026-12-31", estadoActuacion: estado });
+      expect(estaEnProcesoRenovacion(c, [c], "2026-09-01")).toBe(false);
+    }
+  });
+
+  it("no entra si no es de tipo CONTRATO (la vista es específicamente sobre renovación de contratos)", () => {
+    const c = crearActuacion({ actuacionId: "ACT-1", tipoActuacion: "ADENDA", estadoActuacion: "EN_TRAMITE" });
+    expect(estaEnProcesoRenovacion(c, [c], "2026-09-01")).toBe(false);
   });
 });
