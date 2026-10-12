@@ -1,8 +1,10 @@
 "use client";
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/domain/alert";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import type { Actuacion, Inmueble, TipoActuacion } from "@/lib/alquileres/tipos";
 
 const TIPOS: TipoActuacion[] = ["CONTRATO", "ADENDA", "LEGITIMO_ABONO"];
@@ -22,6 +24,13 @@ export function AlquileresActuacionesClient({
 }) {
   const [actuaciones, setActuaciones] = React.useState(actuacionesIniciales);
   const [error, setError] = React.useState<string | null>(null);
+  // Llegada desde el calendario unificado (/calendario) con ?id=ACT-xxx: resalta y
+  // enfoca esa fila en vez de llevar a una página de detalle (todavía no existe una).
+  const idDestacado = useSearchParams().get("id");
+  const filaDestacadaRef = React.useRef<HTMLTableRowElement>(null);
+  React.useEffect(() => {
+    if (idDestacado) filaDestacadaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [idDestacado]);
   const [mostrandoForm, setMostrandoForm] = React.useState(false);
   const [guardando, setGuardando] = React.useState(false);
   const [tipoActuacion, setTipoActuacion] = React.useState<TipoActuacion>("CONTRATO");
@@ -133,7 +142,14 @@ export function AlquileresActuacionesClient({
           </thead>
           <tbody>
             {actuaciones.map((a) => (
-              <tr key={a.actuacionId} className="border-b border-[var(--color-border)] last:border-b-0">
+              <tr
+                key={a.actuacionId}
+                ref={a.actuacionId === idDestacado ? filaDestacadaRef : undefined}
+                className={cn(
+                  "border-b border-[var(--color-border)] last:border-b-0",
+                  a.actuacionId === idDestacado && "bg-[var(--overlay-brand-08)]"
+                )}
+              >
                 <td className="px-3.5 py-2.5 font-mono text-[var(--text-sm)]">{a.actuacionId}</td>
                 <td className="px-3.5 py-2.5">{a.tipoActuacion}</td>
                 <td className="px-3.5 py-2.5">{domicilioDe(a.inmuebleId)}</td>

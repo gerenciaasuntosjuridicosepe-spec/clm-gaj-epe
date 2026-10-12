@@ -17,7 +17,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/", label: "Bandeja de tareas", icon: "bandeja" },
       { href: "/alertas", label: "Alertas de vencimiento", icon: "alertas" },
-      { href: "/calendario", label: "Calendario", icon: "calendario" },
     ],
   },
   {

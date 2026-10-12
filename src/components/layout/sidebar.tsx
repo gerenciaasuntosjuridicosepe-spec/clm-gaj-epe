@@ -92,12 +92,23 @@ function EnlaceNav({
  * usuario con un solo rol no ve el menú del módulo al que no tiene acceso
  * (complementa, del lado de la UI, la guardia real del servidor en
  * `authorized()`/`src/auth.ts` — esto es solo cosmético, no la barrera).
+ *
+ * Orden pedido por Carlos (2026-10-12): Alquileres antes que Administración
+ * del CLM — por eso el grupo "Administración" se separa del resto de
+ * `NAV_GROUPS` y se renderiza al final, después de Alquileres.
+ *
+ * "Calendario" unifica eventos de ambos módulos (`/calendario`, ver
+ * `src/lib/calendario-unificado.ts`) — no es de ningún módulo en particular,
+ * así que se muestra aparte, con cualquiera de los dos roles.
  */
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const rolId = session?.user?.rolId;
   const rolAlquileres = session?.user?.rolAlquileres;
+
+  const gruposClm = NAV_GROUPS.filter((g) => g.label !== "Administración");
+  const grupoAdministracion = NAV_GROUPS.find((g) => g.label === "Administración");
 
   return (
     <aside className="flex w-[var(--sidebar-w)] flex-shrink-0 flex-col bg-brand-blue-700 text-white">
@@ -111,8 +122,14 @@ export function Sidebar() {
         </div>
       </div>
 
+      {(rolId || rolAlquileres) && (
+        <div className="px-2.5 pt-3.5 pb-1">
+          <EnlaceNav href="/calendario" label="Calendario" activo={pathname === "/calendario"} icon={ICONS.calendario} />
+        </div>
+      )}
+
       {rolId &&
-        NAV_GROUPS.map((group) => (
+        gruposClm.map((group) => (
           <div key={group.label} className="px-2.5 pt-3.5 pb-1">
             <div className="px-2.5 pb-1.5 text-[var(--text-2xs)] font-semibold uppercase tracking-wide text-white/40">
               {group.label}
@@ -149,6 +166,24 @@ export function Sidebar() {
               ))}
           </div>
         ))}
+
+      {rolId && grupoAdministracion && (
+        <div className="px-2.5 pt-3.5 pb-1">
+          <div className="px-2.5 pb-1.5 text-[var(--text-2xs)] font-semibold uppercase tracking-wide text-white/40">
+            {grupoAdministracion.label}
+          </div>
+          {grupoAdministracion.items.map((item) => (
+            <EnlaceNav
+              key={item.href}
+              href={item.href}
+              label={item.label}
+              activo={pathname === item.href}
+              icon={ICONS[item.icon]}
+              badge={item.badge}
+            />
+          ))}
+        </div>
+      )}
     </aside>
   );
 }

@@ -83,4 +83,11 @@ describe("acceso-modulo — tieneAccesoARuta (T19)", () => {
     expect(tieneAccesoARuta("/alquileres/inmuebles", { rolId: "abogado" })).toBe(false);
     expect(tieneAccesoARuta("/alquileres/inmuebles", { rolAlquileres: "LECTOR" })).toBe(true);
   });
+
+  it("/calendario (unificado) alcanza con cualquiera de los dos roles, o ambos", () => {
+    expect(tieneAccesoARuta("/calendario", { rolId: "abogado" })).toBe(true);
+    expect(tieneAccesoARuta("/calendario", { rolAlquileres: "LECTOR" })).toBe(true);
+    expect(tieneAccesoARuta("/calendario", { rolId: "abogado", rolAlquileres: "LECTOR" })).toBe(true);
+    expect(tieneAccesoARuta("/calendario", {})).toBe(false);
+  });
 });

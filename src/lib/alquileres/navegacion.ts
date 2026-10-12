@@ -34,7 +34,6 @@ export const NAV_GROUPS_ALQUILERES: NavGroupAlquileres[] = [
       { href: "/alquileres/actuaciones", label: "Actuaciones", icon: "actuaciones" },
       // Personas: LECTOR no tiene ni "leer" en MATRIZ_PERSONAS (dato personal) — se oculta el ítem para ese rol.
       { href: "/alquileres/personas", label: "Personas", icon: "personas", filtro: (rol) => rol !== "LECTOR" },
-      { href: "/alquileres/calendario", label: "Calendario", icon: "calendario" },
       { href: "/alquileres/alertas", label: "Alertas", icon: "alertas" },
       { href: "/alquileres/reportes", label: "Reportes", icon: "reportes" },
     ],

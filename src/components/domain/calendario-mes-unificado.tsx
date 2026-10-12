@@ -1,37 +1,22 @@
 "use client";
 import * as React from "react";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-// Reutilizados: matemática pura de grilla de calendario del CLM, sin tocar
-// su modelo de datos (D2/D5 — ver el comentario de cabecera de
-// `reglas/calendario.ts` sobre por qué NO se reutiliza `EventoCalendario`).
 import { DIAS_SEMANA, MESES, aFechaISO, construirGrillaMes } from "@/lib/calendario";
-import { formatearFecha } from "@/lib/alquileres/fechas";
-import type { EventoCalendarioAlquileres } from "@/lib/alquileres/reglas/calendario";
+import { formatearFecha } from "@/lib/fechas";
+import type { EventoCalendarioUnificado } from "@/lib/calendario-unificado";
 
-const BADGE_POR_NIVEL = {
-  verde: "success",
-  amarillo: "warning",
-  naranja: "orange",
-  rojo: "danger",
-  gris: "info",
-} as const;
-
-const DOT_POR_TIPO: Record<EventoCalendarioAlquileres["tipoEvento"], string> = {
-  vencimiento: "bg-[var(--color-danger)]",
-  hito: "bg-[var(--color-info)]",
-};
-
-/** Vista mensual del calendario de Alquileres (RF-40) — misma grilla visual que `calendario-mes.tsx` del CLM, con el modelo de eventos propio del módulo. */
-export function CalendarioMesAlquileres({ eventos }: { eventos: EventoCalendarioAlquileres[] }) {
+/** Vista mensual unificada (CLM + Alquileres) — misma grilla de siempre, eventos de ambos módulos ya traducidos a una forma común. */
+export function CalendarioMesUnificado({ eventos }: { eventos: EventoCalendarioUnificado[] }) {
   const hoy = new Date();
   const [cursor, setCursor] = React.useState(() => new Date(hoy.getFullYear(), hoy.getMonth(), 1));
   const [diaSeleccionado, setDiaSeleccionado] = React.useState<string>(aFechaISO(hoy));
 
   const eventosPorDia = React.useMemo(() => {
-    const mapa = new Map<string, EventoCalendarioAlquileres[]>();
+    const mapa = new Map<string, EventoCalendarioUnificado[]>();
     for (const ev of eventos) {
       const lista = mapa.get(ev.fecha) ?? [];
       lista.push(ev);
@@ -104,8 +89,8 @@ export function CalendarioMesAlquileres({ eventos }: { eventos: EventoCalendario
                 <div className="flex flex-col gap-0.5">
                   {eventosDia.slice(0, 3).map((ev) => (
                     <span key={ev.id} className="flex items-center gap-1 truncate text-[9px] text-[var(--color-text-secondary)]">
-                      <span className={cn("h-1.5 w-1.5 flex-shrink-0 rounded-full", DOT_POR_TIPO[ev.tipoEvento])} />
-                      <span className="truncate">{ev.actuacionId}</span>
+                      <span className={cn("h-1.5 w-1.5 flex-shrink-0 rounded-full", ev.dotClass)} />
+                      <span className="truncate">{ev.codigo}</span>
                     </span>
                   ))}
                   {eventosDia.length > 3 && (
@@ -128,12 +113,12 @@ export function CalendarioMesAlquileres({ eventos }: { eventos: EventoCalendario
         {eventosDelDia.map((ev) => (
           <div key={ev.id} className="flex items-center justify-between border-b border-[var(--color-border)] py-2 last:border-b-0">
             <div>
-              <span className="font-mono text-[var(--text-base)] font-semibold text-brand-blue-700">{ev.actuacionId}</span>
-              <div className="text-[var(--text-sm)] text-[var(--color-text-muted)]">
-                {ev.inmuebleId} · {ev.descripcion}
-              </div>
+              <Link href={ev.href} className="text-[var(--text-base)] font-semibold text-brand-blue-700 hover:underline">
+                {ev.titulo}
+              </Link>
+              <div className="text-[var(--text-sm)] text-[var(--color-text-muted)]">{ev.subtitulo}</div>
             </div>
-            <Badge variant={ev.nivel ? BADGE_POR_NIVEL[ev.nivel] : "info"}>{ev.tipoEvento === "vencimiento" ? "Vencimiento" : "Hito"}</Badge>
+            <Badge variant={ev.badgeVariant}>{ev.badgeLabel}</Badge>
           </div>
         ))}
       </div>

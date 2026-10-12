@@ -44,9 +44,14 @@ export interface SesionConRoles {
  * acceso a esa ruta (independientemente de que haya podido iniciar sesión
  * por tener rol en el otro módulo). Rutas bajo "/alquileres" exigen
  * `rolAlquileres`; cualquier otra ruta de página (CLM) exige `rolId`.
+ *
+ * Excepción: "/calendario" unifica los eventos de ambos módulos en una
+ * sola vista (cada uno ve solo los suyos), así que alcanza con tener
+ * cualquiera de los dos roles.
  */
 export function tieneAccesoARuta(pathname: string, sesion: SesionConRoles | undefined): boolean {
   if (!sesion) return false;
+  if (pathname === "/calendario") return Boolean(sesion.rolId) || Boolean(sesion.rolAlquileres);
   const enAlquileres = pathname.startsWith("/alquileres");
   return enAlquileres ? Boolean(sesion.rolAlquileres) : Boolean(sesion.rolId);
 }

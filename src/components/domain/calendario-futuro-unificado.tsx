@@ -3,20 +3,14 @@ import * as React from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
-import {
-  EventoCalendario,
-  MESES,
-  TIPO_EVENTO_BADGE,
-  TIPO_EVENTO_LABEL,
-  aFechaISO,
-  sumarMeses,
-} from "@/lib/calendario";
-import { formatearFecha, formatearMonto } from "@/lib/fechas";
+import { MESES, aFechaISO, sumarMeses } from "@/lib/calendario";
+import { formatearFecha } from "@/lib/fechas";
+import type { EventoCalendarioUnificado } from "@/lib/calendario-unificado";
 
 const OPCIONES_MESES = [1, 2, 3, 6, 12];
 
-/** Vista a futuro — todos los eventos entre hoy y hoy + N meses, agrupados por mes. */
-export function CalendarioFuturo({ eventos }: { eventos: EventoCalendario[] }) {
+/** Vista a futuro unificada — todos los eventos (CLM + Alquileres) entre hoy y hoy + N meses, agrupados por mes. */
+export function CalendarioFuturoUnificado({ eventos }: { eventos: EventoCalendarioUnificado[] }) {
   const [meses, setMeses] = React.useState(3);
 
   const hoy = new Date();
@@ -25,7 +19,7 @@ export function CalendarioFuturo({ eventos }: { eventos: EventoCalendario[] }) {
 
   const enRango = eventos.filter((ev) => ev.fecha >= hoyISO && ev.fecha < limiteISO);
 
-  const porMes = new Map<string, EventoCalendario[]>();
+  const porMes = new Map<string, EventoCalendarioUnificado[]>();
   for (const ev of enRango) {
     const [anio, mes] = ev.fecha.split("-").map(Number);
     const clave = `${anio}-${String(mes).padStart(2, "0")}`;
@@ -75,17 +69,13 @@ export function CalendarioFuturo({ eventos }: { eventos: EventoCalendario[] }) {
                   <tr key={ev.id} className="border-b border-[var(--color-border)] last:border-b-0">
                     <td className="w-[90px] whitespace-nowrap px-3.5 py-2.5 font-semibold">{formatearFecha(ev.fecha)}</td>
                     <td className="px-3.5 py-2.5">
-                      <Link href={`/contratos/${ev.contratoId}`} className="font-semibold text-brand-blue-700 hover:underline">
-                        {ev.contratoId} — {ev.objeto}
+                      <Link href={ev.href} className="font-semibold text-brand-blue-700 hover:underline">
+                        {ev.titulo}
                       </Link>
-                      <div className="text-[var(--text-sm)] text-[var(--color-text-muted)]">
-                        {ev.gerenciaResponsable} · {ev.tipoContrato}
-                        {ev.descripcion ? ` · ${ev.descripcion}` : ""}
-                        {ev.monto ? ` · ${formatearMonto(ev.monto, ev.moneda)}` : ""}
-                      </div>
+                      <div className="text-[var(--text-sm)] text-[var(--color-text-muted)]">{ev.subtitulo}</div>
                     </td>
                     <td className="px-3.5 py-2.5 text-right">
-                      <Badge variant={TIPO_EVENTO_BADGE[ev.tipoEvento]}>{TIPO_EVENTO_LABEL[ev.tipoEvento]}</Badge>
+                      <Badge variant={ev.badgeVariant}>{ev.badgeLabel}</Badge>
                     </td>
                   </tr>
                 ))}
