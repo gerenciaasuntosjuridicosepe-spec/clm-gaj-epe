@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { esRespuestaError, requerirAccionAlquileres } from "@/lib/alquileres/auth-guard";
+import { esRespuestaError, requerirAccionAlquileres, requerirAccionSobreActuacion } from "@/lib/alquileres/auth-guard";
 import { MATRIZ_GESTION } from "@/lib/alquileres/permisos";
 import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioActosAdmin } from "@/lib/alquileres/datos/actos-admin";
@@ -41,6 +41,11 @@ type CuerpoFormalizacion = Partial<
     // (una actuación puede empezar sin expediente, H-05 lo crea más
     // adelante) pero nunca estuvo editable — por eso nunca se usaba.
     | "expedienteId"
+    // Responsable (agregado 2026-10-13): quién es el GESTOR asignado a esta
+    // actuación — mismo caso que expedienteId, el campo ya existía pero
+    // nunca era editable. Solo ADMINISTRADOR puede asignarlo/cambiarlo (ver
+    // chequeo más abajo).
+    | "responsableEmail"
   >
 > & { version?: number; motivoCambioFecha?: string };
 
@@ -52,18 +57,20 @@ type CuerpoFormalizacion = Partial<
  * implementado en `[id]/hitos/route.ts`) — acá no se fuerza el estado.
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const sesion = await requerirAccionAlquileres("editar", MATRIZ_GESTION);
-  if (esRespuestaError(sesion)) return sesion;
-
   const { id } = await params;
+  const resultado = await requerirAccionSobreActuacion("editar", MATRIZ_GESTION, id);
+  if (esRespuestaError(resultado)) return resultado;
+  const { sesion, actuacion } = resultado;
+
   const body = (await req.json()) as CuerpoFormalizacion;
 
   if (body.version === undefined) {
     return NextResponse.json({ error: "version es obligatoria (control de concurrencia, T20)." }, { status: 400 });
   }
 
-  const actuacion = await getRepositorioActuaciones().obtener(id);
-  if (!actuacion) return NextResponse.json({ error: "Actuación no encontrada." }, { status: 404 });
+  if (body.responsableEmail !== undefined && sesion.rolAlquileres !== "ADMINISTRADOR") {
+    return NextResponse.json({ error: "Solo un Administrador puede asignar o reasignar el responsable." }, { status: 403 });
+  }
 
   const fechaInicioFinal = body.fechaInicio ?? actuacion.fechaInicio;
   const plazoMesesFinal = body.plazoMeses ?? actuacion.plazoMeses;

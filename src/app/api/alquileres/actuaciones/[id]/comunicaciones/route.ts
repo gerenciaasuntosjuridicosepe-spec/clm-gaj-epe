@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { esRespuestaError, requerirAccionAlquileres } from "@/lib/alquileres/auth-guard";
+import { esRespuestaError, requerirAccionAlquileres, requerirAccionSobreActuacion } from "@/lib/alquileres/auth-guard";
 import { MATRIZ_COMUNICACIONES } from "@/lib/alquileres/permisos";
-import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioActuacionHitos } from "@/lib/alquileres/datos/actuacion-hitos";
 import { getRepositorioComunicaciones } from "@/lib/alquileres/datos/comunicaciones";
 import { getRepositorioAreas } from "@/lib/alquileres/datos/areas";
@@ -42,10 +41,11 @@ const ASUNTO_POR_TIPO: Record<TipoComunicacion, string> = {
  * el hito" — sin paso de BORRADOR/ENVIADO, se registra ya cumplida).
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const sesion = await requerirAccionAlquileres("crear", MATRIZ_COMUNICACIONES);
-  if (esRespuestaError(sesion)) return sesion;
-
   const { id } = await params;
+  const resultado = await requerirAccionSobreActuacion("crear", MATRIZ_COMUNICACIONES, id);
+  if (esRespuestaError(resultado)) return resultado;
+  const { sesion, actuacion } = resultado;
+
   const body = (await req.json()) as {
     tipoComunicacion?: TipoComunicacion;
     numeroCartaDocumento?: string;
@@ -54,11 +54,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!body.tipoComunicacion || !(body.tipoComunicacion in HITO_POR_TIPO)) {
     return NextResponse.json({ error: "tipoComunicacion debe ser AVISO, REITERACION o CARTA_DOCUMENTO." }, { status: 400 });
-  }
-
-  const actuacion = await getRepositorioActuaciones().obtener(id);
-  if (!actuacion) {
-    return NextResponse.json({ error: "Actuación no encontrada." }, { status: 404 });
   }
 
   const hitoId = HITO_POR_TIPO[body.tipoComunicacion];
@@ -169,10 +164,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
 /** RF-23/RF-24 [CAMBIO] + M16 — "Marcar como enviado": cumple el hito asociado (H-01 o H-03) recién con esto. */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const sesion = await requerirAccionAlquileres("editar", MATRIZ_COMUNICACIONES);
-  if (esRespuestaError(sesion)) return sesion;
-
   const { id } = await params;
+  const autorizacion = await requerirAccionSobreActuacion("editar", MATRIZ_COMUNICACIONES, id);
+  if (esRespuestaError(autorizacion)) return autorizacion;
+  const { sesion, actuacion } = autorizacion;
+
   const body = (await req.json()) as { comunicacionId?: string; fechaEnvio?: string; version?: number };
 
   if (!body.comunicacionId) {
@@ -195,11 +191,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: validacion.error }, { status: 400 });
   }
   const fechaEnvio = body.fechaEnvio!;
-
-  const actuacion = await getRepositorioActuaciones().obtener(id);
-  if (!actuacion) {
-    return NextResponse.json({ error: "Actuación no encontrada." }, { status: 404 });
-  }
 
   try {
     const comunicacionActualizada = await getRepositorioComunicaciones().actualizar(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { enmascararSiLector, MATRIZ_GESTION, MATRIZ_PERSONAS, puedeAlquileres } from "./permisos";
+import { enmascararSiLector, gestorPuedeEscribirActuacion, MATRIZ_GESTION, MATRIZ_PERSONAS, puedeAlquileres } from "./permisos";
 
 describe("permisos — matriz de Alquileres (PRD v1 sección 3)", () => {
   it("ADMINISTRADOR puede todo sobre inmuebles/expedientes/actuaciones", () => {
@@ -32,6 +32,20 @@ describe("permisos — matriz de Alquileres (PRD v1 sección 3)", () => {
 
   it("sin rol, no puede nada", () => {
     expect(puedeAlquileres(undefined, "leer", MATRIZ_GESTION)).toBe(false);
+  });
+});
+
+describe("gestorPuedeEscribirActuacion — 2026-10-13: GESTOR solo sobre sus actuaciones asignadas", () => {
+  it("si no hay nadie asignado (responsableEmail vacío), cualquier GESTOR puede escribir", () => {
+    expect(gestorPuedeEscribirActuacion("gestor1@epe.test", { responsableEmail: undefined })).toBe(true);
+  });
+
+  it("el GESTOR asignado puede escribir", () => {
+    expect(gestorPuedeEscribirActuacion("gestor1@epe.test", { responsableEmail: "gestor1@epe.test" })).toBe(true);
+  });
+
+  it("un GESTOR distinto al asignado no puede escribir", () => {
+    expect(gestorPuedeEscribirActuacion("gestor2@epe.test", { responsableEmail: "gestor1@epe.test" })).toBe(false);
   });
 });
 

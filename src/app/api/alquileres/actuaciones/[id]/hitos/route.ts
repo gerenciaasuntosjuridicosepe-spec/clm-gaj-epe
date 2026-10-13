@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { esRespuestaError, requerirAccionAlquileres } from "@/lib/alquileres/auth-guard";
+import { esRespuestaError, requerirAccionAlquileres, requerirAccionSobreActuacion } from "@/lib/alquileres/auth-guard";
 import { MATRIZ_HITOS } from "@/lib/alquileres/permisos";
-import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioActuacionHitos } from "@/lib/alquileres/datos/actuacion-hitos";
 import { marcarHitoNoAplica, reprogramarHito } from "@/lib/alquileres/reglas/rf21-reprogramar-hito";
 import { cumplirHitoYRecalcularEstado } from "@/lib/alquileres/servicios/cumplir-hito-servicio";
@@ -27,10 +26,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
  * NO_APLICA (acción "no_aplica", exige motivo).
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const sesion = await requerirAccionAlquileres("editar", MATRIZ_HITOS);
-  if (esRespuestaError(sesion)) return sesion;
-
   const { id } = await params;
+  const resultado = await requerirAccionSobreActuacion("editar", MATRIZ_HITOS, id);
+  if (esRespuestaError(resultado)) return resultado;
+  const { sesion, actuacion } = resultado;
+
   const body = (await req.json()) as {
     hitoId?: string;
     fechaCumplimiento?: string;
@@ -42,11 +42,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (!body.hitoId) {
     return NextResponse.json({ error: "hitoId es obligatorio." }, { status: 400 });
-  }
-
-  const actuacion = await getRepositorioActuaciones().obtener(id);
-  if (!actuacion) {
-    return NextResponse.json({ error: "Actuación no encontrada." }, { status: 404 });
   }
 
   const todosLosHitos = await getRepositorioActuacionHitos().listar();

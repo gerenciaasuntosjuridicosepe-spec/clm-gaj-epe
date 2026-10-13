@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import type { RolAlquileresId } from "./tipos";
-import { puedeAlquileres, type AccionAlquileres } from "./permisos";
+import type { Actuacion, RolAlquileresId } from "./tipos";
+import { puedeAlquileres, gestorPuedeEscribirActuacion, type AccionAlquileres } from "./permisos";
+import { getRepositorioActuaciones } from "./datos/actuaciones";
 
 export interface SesionAlquileres {
   rolAlquileres: RolAlquileresId;
@@ -49,4 +50,33 @@ export async function requerirAccionAlquileres(
     return NextResponse.json({ error: "Tu rol no tiene permiso para esta acción." }, { status: 403 });
   }
   return sesion;
+}
+
+/**
+ * Igual que `requerirAccionAlquileres`, pero además busca la actuación (404
+ * si no existe) y, si el rol es GESTOR, exige que sea su actuación asignada
+ * (`gestorPuedeEscribirActuacion`, 2026-10-13). ADMINISTRADOR sigue sin
+ * restricción; SUPERVISOR/LECTOR no cambian — esto solo agrega una
+ * restricción para GESTOR, nunca habilita algo que `requerirAccionAlquileres`
+ * ya hubiera rechazado. De paso evita que cada ruta vuelva a buscar la
+ * actuación por separado.
+ */
+export async function requerirAccionSobreActuacion(
+  accion: AccionAlquileres,
+  matriz: Parameters<typeof puedeAlquileres>[2],
+  actuacionId: string
+): Promise<{ sesion: SesionAlquileres; actuacion: Actuacion } | NextResponse> {
+  const sesion = await requerirAccionAlquileres(accion, matriz);
+  if (esRespuestaError(sesion)) return sesion;
+
+  const actuacion = await getRepositorioActuaciones().obtener(actuacionId);
+  if (!actuacion) {
+    return NextResponse.json({ error: "Actuación no encontrada." }, { status: 404 });
+  }
+
+  if (sesion.rolAlquileres === "GESTOR" && !gestorPuedeEscribirActuacion(sesion.email, actuacion)) {
+    return NextResponse.json({ error: "Esta actuación tiene asignado a otro gestor." }, { status: 403 });
+  }
+
+  return { sesion, actuacion };
 }

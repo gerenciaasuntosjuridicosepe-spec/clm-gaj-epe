@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { esRespuestaError, requerirAccionAlquileres } from "@/lib/alquileres/auth-guard";
+import { esRespuestaError, requerirAccionAlquileres, requerirAccionSobreActuacion } from "@/lib/alquileres/auth-guard";
 import { MATRIZ_PERSONAS } from "@/lib/alquileres/permisos";
-import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioActuacionPartes } from "@/lib/alquileres/datos/actuacion-partes";
 import { getRepositorioPersonas } from "@/lib/alquileres/datos/personas";
 import type { ActuacionParte } from "@/lib/alquileres/tipos";
@@ -26,14 +25,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const sesion = await requerirAccionAlquileres("crear", MATRIZ_PERSONAS);
-  if (esRespuestaError(sesion)) return sesion;
-
   const { id } = await params;
-  const actuacion = await getRepositorioActuaciones().obtener(id);
-  if (!actuacion) {
-    return NextResponse.json({ error: "Actuación no encontrada." }, { status: 404 });
-  }
+  const resultado = await requerirAccionSobreActuacion("crear", MATRIZ_PERSONAS, id);
+  if (esRespuestaError(resultado)) return resultado;
+  const { sesion } = resultado;
 
   const body = (await req.json()) as Partial<ActuacionParte>;
 

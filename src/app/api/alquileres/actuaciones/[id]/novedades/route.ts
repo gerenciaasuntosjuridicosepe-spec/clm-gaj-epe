@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { esRespuestaError, requerirAccionAlquileres } from "@/lib/alquileres/auth-guard";
+import { esRespuestaError, requerirAccionAlquileres, requerirAccionSobreActuacion } from "@/lib/alquileres/auth-guard";
 import { MATRIZ_GESTION } from "@/lib/alquileres/permisos";
-import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioActuacionHitos } from "@/lib/alquileres/datos/actuacion-hitos";
 import { getRepositorioNovedades } from "@/lib/alquileres/datos/novedades";
 
@@ -17,19 +16,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 /** Carga una novedad de texto libre sobre la etapa actual de la actuación (y, si corresponde, sobre un hito puntual de esa etapa). */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const sesion = await requerirAccionAlquileres("crear", MATRIZ_GESTION);
-  if (esRespuestaError(sesion)) return sesion;
-
   const { id } = await params;
+  const resultado = await requerirAccionSobreActuacion("crear", MATRIZ_GESTION, id);
+  if (esRespuestaError(resultado)) return resultado;
+  const { sesion, actuacion } = resultado;
+
   const body = (await req.json()) as { texto?: string; hitoId?: string };
 
   if (!body.texto?.trim()) {
     return NextResponse.json({ error: "El texto de la novedad es obligatorio." }, { status: 400 });
-  }
-
-  const actuacion = await getRepositorioActuaciones().obtener(id);
-  if (!actuacion) {
-    return NextResponse.json({ error: "Actuación no encontrada." }, { status: 404 });
   }
 
   if (body.hitoId) {

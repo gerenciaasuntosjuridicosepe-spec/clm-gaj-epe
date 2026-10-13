@@ -1,4 +1,4 @@
-import { EtapaId, Rol, RolId } from "./types";
+import { Contrato, EtapaId, Rol, RolId } from "./types";
 
 /**
  * Roles del sistema (sección 3 del PRD + correcciones acordadas con el usuario:
@@ -140,6 +140,40 @@ export function puedeVerContrato(rolId: RolId, etapaActual: EtapaId): boolean {
   const rol = ROLES[rolId];
   if (rol.visibilidadTotal) return true;
   return accesoEtapa(rolId, etapaActual) !== "-";
+}
+
+/**
+ * Roles con acceso total de ESCRITURA sobre cualquier contrato, en
+ * cualquier etapa — a pedido de Carlos (2026-10-13): "Jefe de área,
+ * gerente y administrador pueden hacer todo". Mismos 3 roles que ya
+ * aprueban solicitudes (`ROLES_APRUEBAN_SOLICITUD`) y que ya tienen
+ * `visibilidadTotal`; se declaran acá aparte porque esto habilita CUALQUIER
+ * escritura, no solo la acción puntual de aprobar.
+ */
+export const ROLES_ACCESO_TOTAL: RolId[] = ["jefatura_asesoramiento", "gerencia_asuntos_juridicos", "administrador_sistema"];
+
+/**
+ * Autoriza una escritura sobre un contrato puntual (campos de cualquier
+ * etapa, no solo acciones especiales como aprobar/avanzar, que tienen su
+ * propio gateo por `ROLES_APRUEBAN_SOLICITUD`/`ROLES_AVANZAN_A_REPOSITORIO`).
+ *
+ * Regla (2026-10-13, a pedido de Carlos): los 3 roles de `ROLES_ACCESO_TOTAL`
+ * pueden escribir cualquier contrato en cualquier etapa. El resto de los
+ * roles sigue la matriz de siempre (`accesoEtapa`), EXCEPTO "abogado": antes
+ * cualquier abogado podía escribir en redacción/negociación/encuadre
+ * legal/cierre de CUALQUIER contrato (por `visibilidadTotal` + ser "R" en
+ * esas etapas); ahora además tiene que ser el abogado asignado
+ * (`contrato.abogadoACargo`, el mismo campo que ya existía y ya se mostraba
+ * en la UI, pero que hasta ahora no restringía nada).
+ */
+export function puedeEscribirContrato(
+  rolId: RolId,
+  nombreUsuario: string,
+  contrato: Pick<Contrato, "etapaActual" | "abogadoACargo">
+): boolean {
+  if (ROLES_ACCESO_TOTAL.includes(rolId)) return true;
+  if (rolId === "abogado" && contrato.abogadoACargo !== nombreUsuario) return false;
+  return accesoEtapa(rolId, contrato.etapaActual) === "R";
 }
 
 /** true si el rol tiene acceso a dashboards/KPIs generales sin restricción. */

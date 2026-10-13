@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { auth } from "@/auth";
-import { accesoEtapa, puedeVerContrato } from "@/lib/permisos";
+import { puedeEscribirContrato, puedeVerContrato } from "@/lib/permisos";
 import { RolId } from "@/lib/types";
 import { getContratosProvider } from "@/lib/data/provider";
 
@@ -73,12 +73,13 @@ export async function requerirAdmin(): Promise<SesionAutorizada | NextResponse> 
 
 /**
  * Autoriza una escritura sobre un contrato existente: además de poder verlo,
- * el rol tiene que ser responsable ("R") de su etapa actual — es el mismo
- * criterio que ya expresa `permisos.ts`, acá se lo hace cumplir también en
- * el servidor, no solo en qué botones muestra la UI. Parche pragmático
- * (ver informe, pendiente #7): cuando Jurídicos valide la matriz completa,
- * esto se puede reemplazar por una tabla de transiciones dedicada sin tocar
- * a los llamadores.
+ * tiene que estar habilitado para escribir (`puedeEscribirContrato` —
+ * Jefatura/Gerencia/Administrador siempre; el resto según la matriz de
+ * etapas, y "abogado" además solo en los contratos que tiene asignados,
+ * ver `permisos.ts`). Se lo hace cumplir también en el servidor, no solo en
+ * qué botones muestra la UI. Parche pragmático (ver informe, pendiente #7):
+ * cuando Jurídicos valide la matriz completa, esto se puede reemplazar por
+ * una tabla de transiciones dedicada sin tocar a los llamadores.
  */
 export async function requerirAccesoEscritura(
   contratoId: string,
@@ -91,10 +92,15 @@ export async function requerirAccesoEscritura(
   if (!puedeVerContrato(sesion.rolId, contrato.etapaActual)) {
     return { error: NextResponse.json({ error: "No tenés acceso a este contrato." }, { status: 403 }) };
   }
-  if (accesoEtapa(sesion.rolId, contrato.etapaActual) !== "R") {
+  if (!puedeEscribirContrato(sesion.rolId, sesion.nombre, contrato)) {
     return {
       error: NextResponse.json(
-        { error: "Tu rol no es responsable de la etapa actual de este contrato." },
+        {
+          error:
+            sesion.rolId === "abogado" && contrato.abogadoACargo && contrato.abogadoACargo !== sesion.nombre
+              ? "Este contrato tiene asignado a otro abogado/a."
+              : "Tu rol no es responsable de la etapa actual de este contrato.",
+        },
         { status: 403 }
       ),
     };

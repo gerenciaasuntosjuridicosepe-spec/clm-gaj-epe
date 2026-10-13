@@ -13,16 +13,20 @@ import { SemaforoPlazo } from "@/components/domain/semaforo-plazo";
 import { HistorialAuditoria } from "@/components/domain/historial-auditoria";
 import { Contrato, EtapaId, ETAPAS_ORDEN, HitoContractual } from "@/lib/types";
 import { formatearFecha, formatearMonto } from "@/lib/fechas";
-import { MOCK_TIPOS_ANOTACION, MOCK_TIPOS_GARANTIA, MOCK_USUARIOS } from "@/lib/data/mock-catalogos";
+import { MOCK_TIPOS_ANOTACION, MOCK_TIPOS_GARANTIA, type Usuario } from "@/lib/data/mock-catalogos";
 import { TIPO_EVENTO_LABEL } from "@/lib/calendario";
 import { useRol } from "@/lib/session";
 import { puedeAccionar, ROLES_APRUEBAN_SOLICITUD, ROLES_AVANZAN_A_REPOSITORIO } from "@/lib/permisos";
 
-const ABOGADOS = MOCK_USUARIOS.filter((u) => u.rolId === "abogado");
-
 const ETAPAS_CON_SEGUIMIENTO: EtapaId[] = ["redaccion", "negociacion"];
 
-export function ContratoDetalleClient({ contrato: contratoInicial }: { contrato: Contrato }) {
+export function ContratoDetalleClient({
+  contrato: contratoInicial,
+  abogadosDisponibles,
+}: {
+  contrato: Contrato;
+  abogadosDisponibles: Usuario[];
+}) {
   const [contrato, setContrato] = React.useState(contratoInicial);
   const [etapaSel, setEtapaSel] = React.useState<EtapaId>(contratoInicial.etapaActual);
 
@@ -53,7 +57,7 @@ export function ContratoDetalleClient({ contrato: contratoInicial }: { contrato:
         <EstadoFlow actual={contrato.etapaActual} seleccionada={etapaSel} onSeleccionar={setEtapaSel} />
       </div>
 
-      <PanelEtapa contrato={contrato} etapa={etapaSel} onCambio={setContrato} />
+      <PanelEtapa contrato={contrato} etapa={etapaSel} onCambio={setContrato} abogadosDisponibles={abogadosDisponibles} />
 
       <div className="mt-5 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-4.5 shadow-[var(--shadow-sm)]">
         <h3 className="mb-2.5 font-[var(--font-display)] text-[var(--text-md)] font-bold uppercase tracking-wide">
@@ -65,7 +69,17 @@ export function ContratoDetalleClient({ contrato: contratoInicial }: { contrato:
   );
 }
 
-function PanelEtapa({ contrato, etapa, onCambio }: { contrato: Contrato; etapa: EtapaId; onCambio: (c: Contrato) => void }) {
+function PanelEtapa({
+  contrato,
+  etapa,
+  onCambio,
+  abogadosDisponibles,
+}: {
+  contrato: Contrato;
+  etapa: EtapaId;
+  onCambio: (c: Contrato) => void;
+  abogadosDisponibles: Usuario[];
+}) {
   const label = ETAPAS_ORDEN.find((e) => e.id === etapa)?.label ?? etapa;
   const esEtapaActual = etapa === contrato.etapaActual;
 
@@ -76,7 +90,14 @@ function PanelEtapa({ contrato, etapa, onCambio }: { contrato: Contrato; etapa: 
       </div>
       <div className="p-4.5">
         {etapa === "solicitud" && <DatosSolicitud contrato={contrato} />}
-        {etapa === "aprobacion_solicitud" && <DatosAprobacionSolicitud contrato={contrato} esEtapaActual={esEtapaActual} onCambio={onCambio} />}
+        {etapa === "aprobacion_solicitud" && (
+          <DatosAprobacionSolicitud
+            contrato={contrato}
+            esEtapaActual={esEtapaActual}
+            onCambio={onCambio}
+            abogadosDisponibles={abogadosDisponibles}
+          />
+        )}
         {ETAPAS_CON_SEGUIMIENTO.includes(etapa) && <DatosSeguimiento contrato={contrato} onCambio={onCambio} />}
         {etapa === "encuadre_legal" && <DatosEncuadreLegal contrato={contrato} onCambio={onCambio} />}
         {etapa === "analisis_financiero" && <DatosAnalisisFinanciero contrato={contrato} />}
@@ -127,10 +148,20 @@ function DatosSolicitud({ contrato: c }: { contrato: Contrato }) {
  * de Asesoramiento General, Gerencia de Asuntos Jurídicos o Administrador
  * pueden aprobar (`ROLES_APRUEBAN_SOLICITUD`).
  */
-function DatosAprobacionSolicitud({ contrato, esEtapaActual, onCambio }: { contrato: Contrato; esEtapaActual: boolean; onCambio: (c: Contrato) => void }) {
+function DatosAprobacionSolicitud({
+  contrato,
+  esEtapaActual,
+  onCambio,
+  abogadosDisponibles,
+}: {
+  contrato: Contrato;
+  esEtapaActual: boolean;
+  onCambio: (c: Contrato) => void;
+  abogadosDisponibles: Usuario[];
+}) {
   const { rolId } = useRol();
   const [aprobando, setAprobando] = React.useState(false);
-  const [abogadoElegido, setAbogadoElegido] = React.useState(ABOGADOS[0]?.nombre ?? "");
+  const [abogadoElegido, setAbogadoElegido] = React.useState(abogadosDisponibles[0]?.nombre ?? "");
   const [guardando, setGuardando] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -202,14 +233,19 @@ function DatosAprobacionSolicitud({ contrato, esEtapaActual, onCambio }: { contr
               </div>
               <div className="mb-3 max-w-[260px]">
                 <Select value={abogadoElegido} onChange={(e) => setAbogadoElegido(e.target.value)}>
-                  {ABOGADOS.map((a) => (
+                  {abogadosDisponibles.map((a) => (
                     <option key={a.id} value={a.nombre}>{a.nombre}</option>
                   ))}
                 </Select>
+                {abogadosDisponibles.length === 0 && (
+                  <p className="mt-1 text-[var(--text-xs)] text-[var(--color-text-muted)]">
+                    No hay ningún usuario con rol &quot;Abogado/a&quot; cargado todavía (Administración &gt; Usuarios y roles).
+                  </p>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button variant="ghost" size="sm" onClick={() => setAprobando(false)}>Cancelar</Button>
-                <Button variant="primary" size="sm" onClick={confirmarAprobacion} disabled={guardando}>
+                <Button variant="primary" size="sm" onClick={confirmarAprobacion} disabled={guardando || !abogadoElegido}>
                   {guardando ? "Guardando…" : "Confirmar aprobación"}
                 </Button>
               </div>

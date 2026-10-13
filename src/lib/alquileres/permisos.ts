@@ -4,7 +4,7 @@
  * PRD v2.1 sección 4, punto 7). L = leer, C = crear, E = editar,
  * B = baja lógica/anulación, — = sin acceso.
  */
-import type { RolAlquileresId } from "./tipos";
+import type { Actuacion, RolAlquileresId } from "./tipos";
 
 export type AccionAlquileres = "leer" | "crear" | "editar" | "baja";
 
@@ -79,6 +79,21 @@ export const MATRIZ_CONTACTOS_EPE: Matriz = MATRIZ_GESTION;
 export function puedeAlquileres(rol: RolAlquileresId | undefined, accion: AccionAlquileres, matriz: Matriz): boolean {
   if (!rol) return false;
   return matriz[rol].includes(accion);
+}
+
+/**
+ * Restricción adicional SOLO para GESTOR (2026-10-13, a pedido de Carlos):
+ * "cada gestión de alquiler se puede asignar a un gestor; ese gestor
+ * asignado puede hacer todas las acciones sobre ella". ADMINISTRADOR sigue
+ * sin restricción (acceso total); SUPERVISOR/LECTOR no se tocan — esta
+ * función no les aplica, se usa solo para decidir si UN GESTOR puntual
+ * puede escribir, no para reemplazar `puedeAlquileres`/`MATRIZ_GESTION`.
+ * Si `responsableEmail` todavía no se cargó, cualquier GESTOR puede
+ * escribir (no hay nadie exclusivo todavía) — distinto de "ya asignado a
+ * otro", que sí bloquea.
+ */
+export function gestorPuedeEscribirActuacion(email: string, actuacion: Pick<Actuacion, "responsableEmail">): boolean {
+  return !actuacion.responsableEmail || actuacion.responsableEmail === email;
 }
 
 /**

@@ -9,6 +9,7 @@ import { getRepositorioAreas } from "@/lib/alquileres/datos/areas";
 import { getRepositorioContactosEpe } from "@/lib/alquileres/datos/contactos-epe";
 import { getRepositorioExpedientes } from "@/lib/alquileres/datos/expedientes";
 import { getRepositorioNovedades } from "@/lib/alquileres/datos/novedades";
+import { listarUsuariosConAccesoAlquileres } from "@/lib/alquileres/usuarios-alquileres";
 import { vencimientoEfectivo } from "@/lib/alquileres/reglas/r15-vencimiento-efectivo";
 import { listarLogCambios } from "@/lib/alquileres/repositorio/log-cambios";
 import { puedeAlquileres, MATRIZ_GESTION } from "@/lib/alquileres/permisos";
@@ -21,17 +22,23 @@ export default async function AlquileresProcesoRenovacionDetallePage({ params }:
   const session = await auth();
   const rol = session?.user?.rolAlquileres;
 
-  const [actuaciones, hitos, comunicaciones, inmuebles, areas, contactos, expedientes, novedades, logCambios] = await Promise.all([
-    getRepositorioActuaciones().listar(),
-    getRepositorioActuacionHitos().listar(),
-    getRepositorioComunicaciones().listar(),
-    getRepositorioInmuebles().listar(),
-    getRepositorioAreas().listar(),
-    getRepositorioContactosEpe().listar(),
-    getRepositorioExpedientes().listar(),
-    getRepositorioNovedades().listar(),
-    listarLogCambios(),
-  ]);
+  const [actuaciones, hitos, comunicaciones, inmuebles, areas, contactos, expedientes, novedades, logCambios, usuariosAlquileres] =
+    await Promise.all([
+      getRepositorioActuaciones().listar(),
+      getRepositorioActuacionHitos().listar(),
+      getRepositorioComunicaciones().listar(),
+      getRepositorioInmuebles().listar(),
+      getRepositorioAreas().listar(),
+      getRepositorioContactosEpe().listar(),
+      getRepositorioExpedientes().listar(),
+      getRepositorioNovedades().listar(),
+      listarLogCambios(),
+      listarUsuariosConAccesoAlquileres(),
+    ]);
+
+  const gestoresDisponibles = usuariosAlquileres
+    .filter((u) => (u.rolAlquileres === "GESTOR" || u.rolAlquileres === "ADMINISTRADOR") && u.activo !== false)
+    .map((u) => ({ email: u.email, nombre: u.nombre }));
 
   const actuacion = actuaciones.find((a) => a.actuacionId === id);
   if (!actuacion || actuacion.tipoActuacion !== "CONTRATO") notFound();
@@ -59,6 +66,8 @@ export default async function AlquileresProcesoRenovacionDetallePage({ params }:
         novedadesIniciales={novedades.filter((n) => n.actuacionId === actuacion.actuacionId)}
         puedeCargarNovedad={puedeAlquileres(rol, "crear", MATRIZ_GESTION)}
         puedeVincularExpediente={puedeAlquileres(rol, "editar", MATRIZ_GESTION)}
+        gestoresDisponibles={gestoresDisponibles}
+        puedeAsignarResponsable={rol === "ADMINISTRADOR"}
       />
     </AppShell>
   );

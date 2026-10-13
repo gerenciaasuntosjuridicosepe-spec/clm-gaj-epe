@@ -57,6 +57,8 @@ export function AlquileresProcesoRenovacionDetalleClient({
   novedadesIniciales,
   puedeCargarNovedad,
   puedeVincularExpediente,
+  gestoresDisponibles,
+  puedeAsignarResponsable,
 }: {
   actuacion: Actuacion;
   inmuebleDomicilio: string;
@@ -70,6 +72,8 @@ export function AlquileresProcesoRenovacionDetalleClient({
   novedadesIniciales: Novedad[];
   puedeCargarNovedad: boolean;
   puedeVincularExpediente: boolean;
+  gestoresDisponibles: { email: string; nombre: string }[];
+  puedeAsignarResponsable: boolean;
 }) {
   const [actuacion, setActuacion] = React.useState(actuacionInicial);
   const [novedades, setNovedades] = React.useState(novedadesIniciales);
@@ -101,6 +105,13 @@ export function AlquileresProcesoRenovacionDetalleClient({
         expedientesDelInmueble={expedientesDelInmueble}
         puedeVincular={puedeVincularExpediente}
         onVinculado={setActuacion}
+      />
+
+      <ResponsableVinculo
+        actuacion={actuacion}
+        gestoresDisponibles={gestoresDisponibles}
+        puedeAsignar={puedeAsignarResponsable}
+        onAsignado={setActuacion}
       />
 
       <div className="mb-5 mt-5 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-4.5 shadow-[var(--shadow-sm)]">
@@ -228,6 +239,90 @@ function ExpedienteVinculo({
           No hay expedientes cargados para este inmueble — creá uno en Expedientes.
         </span>
       )}
+    </div>
+  );
+}
+
+/**
+ * Responsable asignado (agregado 2026-10-13): quién es el GESTOR a cargo de
+ * esta actuación — ahora que un GESTOR distinto no puede editarla, hace
+ * falta un lugar para asignarlo/reasignarlo. Solo ADMINISTRADOR puede
+ * tocarlo (el PATCH lo vuelve a validar del lado del servidor).
+ */
+function ResponsableVinculo({
+  actuacion,
+  gestoresDisponibles,
+  puedeAsignar,
+  onAsignado,
+}: {
+  actuacion: Actuacion;
+  gestoresDisponibles: { email: string; nombre: string }[];
+  puedeAsignar: boolean;
+  onAsignado: (a: Actuacion) => void;
+}) {
+  const [editando, setEditando] = React.useState(false);
+  const [seleccion, setSeleccion] = React.useState(actuacion.responsableEmail ?? "");
+  const [guardando, setGuardando] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const responsable = gestoresDisponibles.find((g) => g.email === actuacion.responsableEmail);
+
+  async function guardar() {
+    setGuardando(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/alquileres/actuaciones/${actuacion.actuacionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ responsableEmail: seleccion || undefined, version: actuacion.version }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No se pudo asignar el responsable.");
+      onAsignado(data as Actuacion);
+      setEditando(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al asignar el responsable.");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  if (!editando) {
+    return (
+      <div className="mt-1 flex items-center gap-2 text-[var(--text-sm)]">
+        <span className="text-[var(--color-text-secondary)]">
+          Responsable: <span className="font-semibold text-[var(--color-text-primary)]">{responsable?.nombre ?? "sin asignar"}</span>
+        </span>
+        {puedeAsignar && (
+          <button onClick={() => setEditando(true)} className="text-brand-blue-700 hover:underline">
+            {responsable ? "reasignar" : "asignar"}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2">
+      {error && <Alert variant="danger">{error}</Alert>}
+      <select
+        value={seleccion}
+        onChange={(e) => setSeleccion(e.target.value)}
+        className="h-9 w-[240px] rounded-[var(--radius-sm)] border border-[var(--color-border)] px-2 text-[var(--text-sm)]"
+      >
+        <option value="">Sin asignar</option>
+        {gestoresDisponibles.map((g) => (
+          <option key={g.email} value={g.email}>
+            {g.nombre}
+          </option>
+        ))}
+      </select>
+      <Button size="xs" variant="primary" onClick={guardar} disabled={guardando}>
+        {guardando ? "Guardando…" : "Guardar"}
+      </Button>
+      <Button size="xs" variant="ghost" onClick={() => setEditando(false)} disabled={guardando}>
+        Cancelar
+      </Button>
     </div>
   );
 }

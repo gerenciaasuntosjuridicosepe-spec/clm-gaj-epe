@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { esRespuestaError, requerirAccionAlquileres } from "@/lib/alquileres/auth-guard";
+import { esRespuestaError, requerirAccionAlquileres, requerirAccionSobreActuacion } from "@/lib/alquileres/auth-guard";
 import { MATRIZ_DOCUMENTOS } from "@/lib/alquileres/permisos";
-import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioActosAdmin } from "@/lib/alquileres/datos/actos-admin";
 import type { ActoAdmin } from "@/lib/alquileres/tipos";
 
@@ -23,14 +22,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
  * `[id]/route.ts`, que ahora consulta esta tabla).
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const sesion = await requerirAccionAlquileres("crear", MATRIZ_DOCUMENTOS);
-  if (esRespuestaError(sesion)) return sesion;
-
   const { id } = await params;
-  const actuacion = await getRepositorioActuaciones().obtener(id);
-  if (!actuacion) {
-    return NextResponse.json({ error: "Actuación no encontrada." }, { status: 404 });
-  }
+  const resultado = await requerirAccionSobreActuacion("crear", MATRIZ_DOCUMENTOS, id);
+  if (esRespuestaError(resultado)) return resultado;
+  const { sesion } = resultado;
 
   const body = (await req.json()) as Partial<ActoAdmin>;
 
