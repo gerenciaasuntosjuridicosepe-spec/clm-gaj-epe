@@ -301,6 +301,32 @@ export interface Comunicacion extends CamposAuditoria {
 }
 
 // ---------------------------------------------------------------------------
+// NOVEDADES
+// ---------------------------------------------------------------------------
+
+/**
+ * Agregado a pedido de Carlos (2026-10-13): registro libre de novedades
+ * sobre el trámite de renovación — no viene de ningún PRD. Nace de la
+ * confusión real de no poder anotar avances sueltos en cada etapa (y,
+ * cuando corresponde, en un hito puntual dentro de esa etapa) sin tener que
+ * forzarlos dentro de `observaciones` (un solo campo, se pisa cada vez) o
+ * de una Comunicación (que es otra cosa: tiene destinatarios y un flujo de
+ * envío propio). Es de solo alta — no se edita ni se borra, mismo criterio
+ * que LOG_CAMBIOS, pero es contenido libre del usuario, no un log de
+ * sistema, así que pasa por el repositorio genérico como cualquier otra
+ * tabla (no por el mecanismo especial de LOG_CAMBIOS).
+ */
+export interface Novedad extends CamposAuditoria {
+  novedadId: string; // PK, prefijo NOV-
+  actuacionId: string; // FK ACTUACIONES
+  /** Etapa (estado_actuacion) vigente en el momento de cargarla — se guarda como foto, no se recalcula si la actuación avanza después. */
+  estadoActuacion: EstadoActuacion;
+  /** Hito puntual al que se refiere, si corresponde (ej. una novedad sobre H-04 dentro de "En trámite"). Opcional: no toda novedad es sobre un hito específico. */
+  hitoId?: string; // FK HITOS
+  texto: string;
+}
+
+// ---------------------------------------------------------------------------
 // DOCUMENTOS
 // ---------------------------------------------------------------------------
 
@@ -466,6 +492,7 @@ export const PREFIJOS_ID = {
   plantilla: "PLA",
   localidad: "LOC",
   logCambio: "LOG",
+  novedad: "NOV",
 } as const;
 
 export type PrefijoId = (typeof PREFIJOS_ID)[keyof typeof PREFIJOS_ID];

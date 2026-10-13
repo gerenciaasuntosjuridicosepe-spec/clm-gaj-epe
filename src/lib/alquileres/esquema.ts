@@ -36,6 +36,7 @@ import type {
   Inmueble,
   Localidad,
   LogCambio,
+  Novedad,
   Parametro,
   Persona,
   Plantilla,
@@ -66,6 +67,7 @@ export const SHEET_NAMES = {
   catalogos: "CATALOGOS",
   parametros: "PARAMETROS",
   logCambios: "LOG_CAMBIOS",
+  novedades: "NOVEDADES",
   feriados: "FERIADOS",
   errores: "ERRORES",
 } as const;
@@ -305,6 +307,19 @@ export const COMUNICACIONES_COLUMNS: ColumnaDef<Comunicacion>[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// NOVEDADES
+// ---------------------------------------------------------------------------
+
+export const NOVEDADES_COLUMNS: ColumnaDef<Novedad>[] = [
+  { key: "novedadId", header: "novedad_id", tipo: "string" },
+  { key: "actuacionId", header: "actuacion_id", tipo: "string" },
+  { key: "estadoActuacion", header: "estado_actuacion", tipo: "string" },
+  { key: "hitoId", header: "hito_id", tipo: "string" },
+  { key: "texto", header: "texto", tipo: "string" },
+  ...columnasAuditoria<Novedad>(),
+];
+
+// ---------------------------------------------------------------------------
 // DOCUMENTOS
 // ---------------------------------------------------------------------------
 
@@ -461,6 +476,7 @@ export const ESQUEMA_TABLAS: Record<NombreTabla, { sheet: string; columns: Colum
   catalogos: { sheet: SHEET_NAMES.catalogos, columns: CATALOGOS_COLUMNS },
   parametros: { sheet: SHEET_NAMES.parametros, columns: PARAMETROS_COLUMNS },
   logCambios: { sheet: SHEET_NAMES.logCambios, columns: LOG_CAMBIOS_COLUMNS },
+  novedades: { sheet: SHEET_NAMES.novedades, columns: NOVEDADES_COLUMNS },
   feriados: { sheet: SHEET_NAMES.feriados, columns: FERIADOS_COLUMNS },
   errores: { sheet: SHEET_NAMES.errores, columns: ERRORES_COLUMNS },
 };
@@ -500,4 +516,5 @@ export const SEQ_SHEET_NAMES: Record<PrefijoId, string> = {
   PLA: "SEQ_PLA",
   LOC: "SEQ_LOC",
   LOG: "SEQ_LOG",
+  NOV: "SEQ_NOV",
 };

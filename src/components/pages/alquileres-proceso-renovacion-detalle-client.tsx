@@ -3,10 +3,12 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/domain/alert";
 import { EstadoFlowAlquileres } from "@/components/domain/estado-flow-alquileres";
 import { formatearFecha, formatearMonto, diferenciaDias, nivelSemaforo, hoy } from "@/lib/alquileres/fechas";
 import { nombreHito } from "@/lib/alquileres/catalogos/hitos-seed";
-import type { Actuacion, ActuacionHito, Comunicacion, EstadoActuacion, LogCambio } from "@/lib/alquileres/tipos";
+import type { Actuacion, ActuacionHito, Comunicacion, EstadoActuacion, Expediente, LogCambio, Novedad } from "@/lib/alquileres/tipos";
 
 const LABELS_ESTADO: Record<EstadoActuacion, string> = {
   PENDIENTE_AVISO: "Aviso pendiente",
@@ -43,7 +45,7 @@ function Grilla({ children }: { children: React.ReactNode }) {
 }
 
 export function AlquileresProcesoRenovacionDetalleClient({
-  actuacion,
+  actuacion: actuacionInicial,
   inmuebleDomicilio,
   areaNombre,
   firmanteNombre,
@@ -51,6 +53,10 @@ export function AlquileresProcesoRenovacionDetalleClient({
   hitos,
   comunicaciones,
   historialEstados,
+  expedientesDelInmueble,
+  novedadesIniciales,
+  puedeCargarNovedad,
+  puedeVincularExpediente,
 }: {
   actuacion: Actuacion;
   inmuebleDomicilio: string;
@@ -60,8 +66,16 @@ export function AlquileresProcesoRenovacionDetalleClient({
   hitos: ActuacionHito[];
   comunicaciones: Comunicacion[];
   historialEstados: Pick<LogCambio, "fechaHora" | "usuarioEmail" | "valorAnterior" | "valorNuevo">[];
+  expedientesDelInmueble: Expediente[];
+  novedadesIniciales: Novedad[];
+  puedeCargarNovedad: boolean;
+  puedeVincularExpediente: boolean;
 }) {
-  const [estadoSel, setEstadoSel] = React.useState<EstadoActuacion>(actuacion.estadoActuacion);
+  const [actuacion, setActuacion] = React.useState(actuacionInicial);
+  const [novedades, setNovedades] = React.useState(novedadesIniciales);
+  const [estadoSel, setEstadoSel] = React.useState<EstadoActuacion>(actuacionInicial.estadoActuacion);
+
+  const expedienteVinculado = expedientesDelInmueble.find((e) => e.expedienteId === actuacion.expedienteId);
 
   return (
     <>
@@ -79,9 +93,17 @@ export function AlquileresProcesoRenovacionDetalleClient({
         <Badge variant="gray">{actuacion.tipoActuacion}</Badge>
         {vencimientoEfectivo && <Badge variant="blue">Vence {formatearFecha(vencimientoEfectivo)}</Badge>}
       </div>
-      <p className="mb-5 text-[var(--text-base)] text-[var(--color-text-secondary)]">{inmuebleDomicilio}</p>
+      <p className="mb-2 text-[var(--text-base)] text-[var(--color-text-secondary)]">{inmuebleDomicilio}</p>
 
-      <div className="mb-5 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-4.5 shadow-[var(--shadow-sm)]">
+      <ExpedienteVinculo
+        actuacion={actuacion}
+        expedienteVinculado={expedienteVinculado}
+        expedientesDelInmueble={expedientesDelInmueble}
+        puedeVincular={puedeVincularExpediente}
+        onVinculado={setActuacion}
+      />
+
+      <div className="mb-5 mt-5 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-4.5 shadow-[var(--shadow-sm)]">
         <div className="mb-2 text-[9px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]">
           Trámite de renovación — hacé click en una etapa para ver sus datos
         </div>
@@ -96,6 +118,15 @@ export function AlquileresProcesoRenovacionDetalleClient({
         vencimientoEfectivo={vencimientoEfectivo}
         hitos={hitos}
         comunicaciones={comunicaciones}
+      />
+
+      <NovedadesEtapa
+        actuacionId={actuacion.actuacionId}
+        estado={estadoSel}
+        hitos={hitos}
+        novedades={novedades}
+        puedeCargar={puedeCargarNovedad}
+        onNovedadCreada={(n) => setNovedades((prev) => [...prev, n])}
       />
 
       <div className="mt-5 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-4.5 shadow-[var(--shadow-sm)]">
@@ -114,6 +145,90 @@ export function AlquileresProcesoRenovacionDetalleClient({
         </Link>
       </div>
     </>
+  );
+}
+
+/** Vínculo con EXPEDIENTES (agregado 2026-10-13): el modelo lo permitía desde siempre, pero no había dónde verlo ni editarlo. */
+function ExpedienteVinculo({
+  actuacion,
+  expedienteVinculado,
+  expedientesDelInmueble,
+  puedeVincular,
+  onVinculado,
+}: {
+  actuacion: Actuacion;
+  expedienteVinculado?: Expediente;
+  expedientesDelInmueble: Expediente[];
+  puedeVincular: boolean;
+  onVinculado: (a: Actuacion) => void;
+}) {
+  const [editando, setEditando] = React.useState(false);
+  const [seleccion, setSeleccion] = React.useState(actuacion.expedienteId ?? "");
+  const [guardando, setGuardando] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  async function guardar() {
+    setGuardando(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/alquileres/actuaciones/${actuacion.actuacionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expedienteId: seleccion || undefined, version: actuacion.version }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No se pudo vincular el expediente.");
+      onVinculado(data as Actuacion);
+      setEditando(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al vincular el expediente.");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  if (!editando) {
+    return (
+      <div className="flex items-center gap-2 text-[var(--text-sm)]">
+        <span className="text-[var(--color-text-secondary)]">
+          Expediente: <span className="font-semibold text-[var(--color-text-primary)]">{expedienteVinculado?.nroExpediente ?? "sin vincular todavía"}</span>
+        </span>
+        {puedeVincular && (
+          <button onClick={() => setEditando(true)} className="text-brand-blue-700 hover:underline">
+            {expedienteVinculado ? "cambiar" : "vincular"}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {error && <Alert variant="danger">{error}</Alert>}
+      <select
+        value={seleccion}
+        onChange={(e) => setSeleccion(e.target.value)}
+        className="h-9 w-[240px] rounded-[var(--radius-sm)] border border-[var(--color-border)] px-2 text-[var(--text-sm)]"
+      >
+        <option value="">Sin expediente</option>
+        {expedientesDelInmueble.map((ex) => (
+          <option key={ex.expedienteId} value={ex.expedienteId}>
+            {ex.nroExpediente}
+          </option>
+        ))}
+      </select>
+      <Button size="xs" variant="primary" onClick={guardar} disabled={guardando}>
+        {guardando ? "Guardando…" : "Guardar"}
+      </Button>
+      <Button size="xs" variant="ghost" onClick={() => setEditando(false)} disabled={guardando}>
+        Cancelar
+      </Button>
+      {expedientesDelInmueble.length === 0 && (
+        <span className="text-[var(--text-xs)] text-[var(--color-text-muted)]">
+          No hay expedientes cargados para este inmueble — creá uno en Expedientes.
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -145,6 +260,121 @@ function HistorialEstados({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * Novedades de texto libre por etapa (y, si corresponde, por hito dentro de
+ * esa etapa) — agregado 2026-10-13 a pedido de Carlos. Se filtran por la
+ * etapa seleccionada en el stepper de arriba, no por la etapa actual real
+ * de la actuación: así se puede ver (y seguir cargando, si todavía
+ * corresponde) el historial de cualquier etapa ya pasada.
+ */
+function NovedadesEtapa({
+  actuacionId,
+  estado,
+  hitos,
+  novedades,
+  puedeCargar,
+  onNovedadCreada,
+}: {
+  actuacionId: string;
+  estado: EstadoActuacion;
+  hitos: ActuacionHito[];
+  novedades: Novedad[];
+  puedeCargar: boolean;
+  onNovedadCreada: (n: Novedad) => void;
+}) {
+  const [texto, setTexto] = React.useState("");
+  const [hitoId, setHitoId] = React.useState("");
+  const [guardando, setGuardando] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const deEstaEtapa = novedades.filter((n) => n.estadoActuacion === estado).sort((a, b) => a.creadoEn.localeCompare(b.creadoEn));
+
+  async function cargar() {
+    if (!texto.trim()) return;
+    setGuardando(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/alquileres/actuaciones/${actuacionId}/novedades`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texto: texto.trim(), hitoId: hitoId || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No se pudo cargar la novedad.");
+      onNovedadCreada(data as Novedad);
+      setTexto("");
+      setHitoId("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al cargar la novedad.");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div className="mt-5 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white shadow-[var(--shadow-sm)]">
+      <div className="border-b border-[var(--color-border)] bg-[var(--overlay-brand-04)] px-4.5 py-3.5">
+        <h3 className="font-[var(--font-display)] text-[var(--text-md)] font-bold uppercase tracking-wide">
+          Novedades — {LABELS_ESTADO[estado]}
+        </h3>
+      </div>
+      <div className="p-4.5">
+        {deEstaEtapa.length === 0 ? (
+          <p className="mb-3 text-[var(--text-sm)] text-[var(--color-text-muted)]">Sin novedades cargadas en esta etapa todavía.</p>
+        ) : (
+          <div className="mb-3 flex flex-col gap-2">
+            {deEstaEtapa.map((n) => (
+              <div key={n.novedadId} className="border-b border-[var(--color-border)] pb-2 last:border-b-0">
+                {n.hitoId && (
+                  <Badge variant="gray" className="mb-1">
+                    {nombreHito(n.hitoId)}
+                  </Badge>
+                )}
+                <div className="text-[var(--text-base)]">{n.texto}</div>
+                <div className="text-[var(--text-2xs)] text-[var(--color-text-muted)]">
+                  {formatearFecha(n.creadoEn)} · {n.creadoPor}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {puedeCargar && (
+          <div className="flex flex-col gap-2 border-t border-[var(--color-border)] pt-3">
+            {error && <Alert variant="danger">{error}</Alert>}
+            <textarea
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              placeholder="Cargar una novedad para esta etapa…"
+              rows={2}
+              className="w-full rounded-[var(--radius-sm)] border border-[var(--color-border)] px-2.5 py-2 text-[var(--text-sm)]"
+            />
+            <div className="flex items-center gap-2">
+              {hitos.length > 0 && (
+                <select
+                  value={hitoId}
+                  onChange={(e) => setHitoId(e.target.value)}
+                  className="h-9 rounded-[var(--radius-sm)] border border-[var(--color-border)] px-2 text-[var(--text-sm)]"
+                >
+                  <option value="">Sin hito específico</option>
+                  {hitos.map((h) => (
+                    <option key={h.actuacionHitoId} value={h.hitoId}>
+                      {nombreHito(h.hitoId)}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <Button size="sm" variant="primary" onClick={cargar} disabled={guardando || !texto.trim()}>
+                {guardando ? "Guardando…" : "Cargar novedad"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

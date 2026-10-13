@@ -17,6 +17,7 @@ const BADGE_POR_NIVEL: Record<NivelSemaforo, "success" | "warning" | "orange" | 
 export interface ProcesoRenovacion {
   actuacion: Actuacion;
   inmuebleDomicilio: string;
+  nroExpediente?: string;
   vencimientoEfectivo?: string;
   nivel?: NivelSemaforo;
 }
@@ -42,6 +43,9 @@ export function AlquileresProcesosRenovacionClient({ procesos }: { procesos: Pro
           <div className="mb-2.5 flex flex-wrap items-center gap-2">
             <span className="font-mono text-[var(--text-base)] font-semibold text-brand-blue-700">{p.actuacion.actuacionId}</span>
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">{p.inmuebleDomicilio}</span>
+            <span className="text-[var(--text-sm)] text-[var(--color-text-muted)]">
+              Expediente: {p.nroExpediente ?? "sin vincular todavía"}
+            </span>
             {p.vencimientoEfectivo && (
               <Badge variant={p.nivel ? BADGE_POR_NIVEL[p.nivel] : "info"}>
                 Vence {formatearFecha(p.vencimientoEfectivo)}

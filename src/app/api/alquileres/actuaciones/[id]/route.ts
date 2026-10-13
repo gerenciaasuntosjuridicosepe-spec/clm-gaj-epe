@@ -4,6 +4,7 @@ import { MATRIZ_GESTION } from "@/lib/alquileres/permisos";
 import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioActosAdmin } from "@/lib/alquileres/datos/actos-admin";
 import { getRepositorioActuacionPartes } from "@/lib/alquileres/datos/actuacion-partes";
+import { getRepositorioExpedientes } from "@/lib/alquileres/datos/expedientes";
 import { fechaFinPorDefecto, validarFechaFinManual } from "@/lib/alquileres/reglas/r5-fecha-fin";
 import { validarObligatoriosFormalizacion } from "@/lib/alquileres/reglas/r4-obligatorios-formalizada";
 import { validarPartesMinimas } from "@/lib/alquileres/reglas/r8-partes-minimas";
@@ -36,6 +37,10 @@ type CuerpoFormalizacion = Partial<
     | "firmanteEpeContactoId"
     | "observaciones"
     | "estadoActuacion"
+    // Vínculo con EXPEDIENTES (agregado 2026-10-13): el modelo ya lo tenía
+    // (una actuación puede empezar sin expediente, H-05 lo crea más
+    // adelante) pero nunca estuvo editable — por eso nunca se usaba.
+    | "expedienteId"
   >
 > & { version?: number; motivoCambioFecha?: string };
 
@@ -66,6 +71,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const cambios: Partial<Actuacion> = { ...body };
   delete (cambios as { version?: number }).version;
   delete (cambios as { motivoCambioFecha?: string }).motivoCambioFecha;
+
+  if (body.expedienteId) {
+    const expediente = await getRepositorioExpedientes().obtener(body.expedienteId);
+    if (!expediente) {
+      return NextResponse.json({ error: "El expediente indicado no existe." }, { status: 400 });
+    }
+    if (expediente.inmuebleId !== actuacion.inmuebleId) {
+      return NextResponse.json({ error: "El expediente indicado corresponde a otro inmueble." }, { status: 400 });
+    }
+  }
 
   // R5: fecha_fin por defecto = inicio + plazo - 1 día; si se informa una fecha distinta, exige motivo.
   if (fechaInicioFinal && plazoMesesFinal) {

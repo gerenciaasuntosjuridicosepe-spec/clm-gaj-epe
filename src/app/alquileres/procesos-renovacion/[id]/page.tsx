@@ -7,21 +7,29 @@ import { getRepositorioComunicaciones } from "@/lib/alquileres/datos/comunicacio
 import { getRepositorioInmuebles } from "@/lib/alquileres/datos/inmuebles";
 import { getRepositorioAreas } from "@/lib/alquileres/datos/areas";
 import { getRepositorioContactosEpe } from "@/lib/alquileres/datos/contactos-epe";
+import { getRepositorioExpedientes } from "@/lib/alquileres/datos/expedientes";
+import { getRepositorioNovedades } from "@/lib/alquileres/datos/novedades";
 import { vencimientoEfectivo } from "@/lib/alquileres/reglas/r15-vencimiento-efectivo";
 import { listarLogCambios } from "@/lib/alquileres/repositorio/log-cambios";
+import { puedeAlquileres, MATRIZ_GESTION } from "@/lib/alquileres/permisos";
+import { auth } from "@/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function AlquileresProcesoRenovacionDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const session = await auth();
+  const rol = session?.user?.rolAlquileres;
 
-  const [actuaciones, hitos, comunicaciones, inmuebles, areas, contactos, logCambios] = await Promise.all([
+  const [actuaciones, hitos, comunicaciones, inmuebles, areas, contactos, expedientes, novedades, logCambios] = await Promise.all([
     getRepositorioActuaciones().listar(),
     getRepositorioActuacionHitos().listar(),
     getRepositorioComunicaciones().listar(),
     getRepositorioInmuebles().listar(),
     getRepositorioAreas().listar(),
     getRepositorioContactosEpe().listar(),
+    getRepositorioExpedientes().listar(),
+    getRepositorioNovedades().listar(),
     listarLogCambios(),
   ]);
 
@@ -47,6 +55,10 @@ export default async function AlquileresProcesoRenovacionDetallePage({ params }:
         hitos={hitos.filter((h) => h.actuacionId === actuacion.actuacionId)}
         comunicaciones={comunicaciones.filter((c) => c.actuacionId === actuacion.actuacionId)}
         historialEstados={historialEstados}
+        expedientesDelInmueble={expedientes.filter((e) => e.inmuebleId === actuacion.inmuebleId)}
+        novedadesIniciales={novedades.filter((n) => n.actuacionId === actuacion.actuacionId)}
+        puedeCargarNovedad={puedeAlquileres(rol, "crear", MATRIZ_GESTION)}
+        puedeVincularExpediente={puedeAlquileres(rol, "editar", MATRIZ_GESTION)}
       />
     </AppShell>
   );

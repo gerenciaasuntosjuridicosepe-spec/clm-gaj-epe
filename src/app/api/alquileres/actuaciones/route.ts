@@ -3,6 +3,7 @@ import { esRespuestaError, requerirAccionAlquileres } from "@/lib/alquileres/aut
 import { MATRIZ_GESTION } from "@/lib/alquileres/permisos";
 import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioInmuebles } from "@/lib/alquileres/datos/inmuebles";
+import { getRepositorioExpedientes } from "@/lib/alquileres/datos/expedientes";
 import { getRepositorioActuacionHitos } from "@/lib/alquileres/datos/actuacion-hitos";
 import { validarCadenaActuacion } from "@/lib/alquileres/reglas/r3-cadena-actuaciones";
 import { generarHitosParaActuacion } from "@/lib/alquileres/reglas/rf19-generar-hitos";
@@ -42,6 +43,16 @@ export async function POST(req: NextRequest) {
   const inmueble = await getRepositorioInmuebles().obtener(body.inmuebleId.trim());
   if (!inmueble) {
     return NextResponse.json({ error: "El inmueble indicado no existe." }, { status: 400 });
+  }
+
+  if (body.expedienteId?.trim()) {
+    const expediente = await getRepositorioExpedientes().obtener(body.expedienteId.trim());
+    if (!expediente) {
+      return NextResponse.json({ error: "El expediente indicado no existe." }, { status: 400 });
+    }
+    if (expediente.inmuebleId !== inmueble.inmuebleId) {
+      return NextResponse.json({ error: "El expediente indicado corresponde a otro inmueble." }, { status: 400 });
+    }
   }
 
   const todas = await getRepositorioActuaciones().listar({ soloActivos: false });

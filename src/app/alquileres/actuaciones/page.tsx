@@ -2,6 +2,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { AlquileresActuacionesClient } from "@/components/pages/alquileres-actuaciones-client";
 import { getRepositorioActuaciones } from "@/lib/alquileres/datos/actuaciones";
 import { getRepositorioInmuebles } from "@/lib/alquileres/datos/inmuebles";
+import { getRepositorioExpedientes } from "@/lib/alquileres/datos/expedientes";
 import { puedeAlquileres, MATRIZ_GESTION, MATRIZ_DOCUMENTOS } from "@/lib/alquileres/permisos";
 import { auth } from "@/auth";
 
@@ -11,9 +12,10 @@ export const dynamic = "force-dynamic";
 export default async function AlquileresActuacionesPage() {
   const session = await auth();
   const rol = session?.user?.rolAlquileres;
-  const [actuaciones, inmuebles] = await Promise.all([
+  const [actuaciones, inmuebles, expedientes] = await Promise.all([
     getRepositorioActuaciones().listar(),
     getRepositorioInmuebles().listar(),
+    getRepositorioExpedientes().listar(),
   ]);
 
   return (
@@ -26,6 +28,7 @@ export default async function AlquileresActuacionesPage() {
       <AlquileresActuacionesClient
         actuacionesIniciales={actuaciones}
         inmuebles={inmuebles}
+        expedientes={expedientes}
         puedeCrear={puedeAlquileres(rol, "crear", MATRIZ_GESTION)}
         puedeGenerarBorrador={puedeAlquileres(rol, "leer", MATRIZ_DOCUMENTOS)}
       />

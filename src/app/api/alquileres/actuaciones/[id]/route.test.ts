@@ -14,6 +14,7 @@ function patchActuacion(body: Record<string, unknown>) {
 describe("PATCH /api/alquileres/actuaciones/[id] — RF-12 (formalización, parcial)", () => {
   let actuacionId: string;
   let version: number;
+  let inmuebleId: string;
 
   beforeEach(async () => {
     vi.resetModules();
@@ -25,6 +26,7 @@ describe("PATCH /api/alquileres/actuaciones/[id] — RF-12 (formalización, parc
       })
     );
     const inmueble = await resInmueble.json();
+    inmuebleId = inmueble.inmuebleId;
 
     const { POST: crearActuacion } = await import("@/app/api/alquileres/actuaciones/route");
     const resActuacion = await crearActuacion(
@@ -46,6 +48,60 @@ describe("PATCH /api/alquileres/actuaciones/[id] — RF-12 (formalización, parc
     const { PATCH } = await import("./route");
     const res = await PATCH(patchActuacion({ fechaInicio: "2026-01-01" }), { params: Promise.resolve({ id: actuacionId }) });
     expect(res.status).toBe(400);
+  });
+
+  it("expedienteId (2026-10-13): rechaza un expediente que no existe", async () => {
+    const { PATCH } = await import("./route");
+    const res = await PATCH(patchActuacion({ version, expedienteId: "EXP-9999" }), { params: Promise.resolve({ id: actuacionId }) });
+    expect(res.status).toBe(400);
+  });
+
+  it("expedienteId: rechaza un expediente de otro inmueble", async () => {
+    const { POST: crearInmueble } = await import("@/app/api/alquileres/inmuebles/route");
+    const otroInmueble = await (
+      await crearInmueble(
+        new NextRequest("http://localhost/api/alquileres/inmuebles", {
+          method: "POST",
+          body: JSON.stringify({ domicilio: "Otra calle", localidadId: "LOC-TEST" }),
+        })
+      )
+    ).json();
+
+    const { POST: crearExpediente } = await import("@/app/api/alquileres/expedientes/route");
+    const expediente = await (
+      await crearExpediente(
+        new NextRequest("http://localhost/api/alquileres/expedientes", {
+          method: "POST",
+          body: JSON.stringify({ inmuebleId: otroInmueble.inmuebleId, nroExpediente: "1-2026-000001" }),
+        })
+      )
+    ).json();
+
+    const { PATCH } = await import("./route");
+    const res = await PATCH(patchActuacion({ version, expedienteId: expediente.expedienteId }), {
+      params: Promise.resolve({ id: actuacionId }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("expedienteId: acepta un expediente del mismo inmueble y lo vincula", async () => {
+    const { POST: crearExpediente } = await import("@/app/api/alquileres/expedientes/route");
+    const expediente = await (
+      await crearExpediente(
+        new NextRequest("http://localhost/api/alquileres/expedientes", {
+          method: "POST",
+          body: JSON.stringify({ inmuebleId, nroExpediente: "1-2026-000002" }),
+        })
+      )
+    ).json();
+
+    const { PATCH } = await import("./route");
+    const res = await PATCH(patchActuacion({ version, expedienteId: expediente.expedienteId }), {
+      params: Promise.resolve({ id: actuacionId }),
+    });
+    expect(res.status).toBe(200);
+    const actualizada = await res.json();
+    expect(actualizada.expedienteId).toBe(expediente.expedienteId);
   });
 
   it("T2: con inicio + plazo sin fecha_fin explícita, propone la fecha_fin por defecto (R5)", async () => {

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/domain/alert";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { Actuacion, Inmueble, TipoActuacion } from "@/lib/alquileres/tipos";
+import type { Actuacion, Expediente, Inmueble, TipoActuacion } from "@/lib/alquileres/tipos";
 
 const TIPOS: TipoActuacion[] = ["CONTRATO", "ADENDA", "LEGITIMO_ABONO"];
 
@@ -13,11 +13,13 @@ const TIPOS: TipoActuacion[] = ["CONTRATO", "ADENDA", "LEGITIMO_ABONO"];
 export function AlquileresActuacionesClient({
   actuacionesIniciales,
   inmuebles,
+  expedientes,
   puedeCrear,
   puedeGenerarBorrador,
 }: {
   actuacionesIniciales: Actuacion[];
   inmuebles: Inmueble[];
+  expedientes: Expediente[];
   puedeCrear: boolean;
   /** RF-25/26/27 (decisión 2026-10-03, ver docs/DECISIONES.md): mismo permiso que ver documentos (`MATRIZ_DOCUMENTOS`, acción "leer") — generar un borrador no persiste nada, es equivalente a leer. */
   puedeGenerarBorrador: boolean;
@@ -36,6 +38,7 @@ export function AlquileresActuacionesClient({
   const [tipoActuacion, setTipoActuacion] = React.useState<TipoActuacion>("CONTRATO");
   const [inmuebleId, setInmuebleId] = React.useState("");
   const [sectorInteresadoAreaId, setSectorInteresadoAreaId] = React.useState("");
+  const [expedienteId, setExpedienteId] = React.useState("");
 
   async function crear() {
     setGuardando(true);
@@ -44,13 +47,14 @@ export function AlquileresActuacionesClient({
       const res = await fetch("/api/alquileres/actuaciones", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tipoActuacion, inmuebleId, sectorInteresadoAreaId }),
+        body: JSON.stringify({ tipoActuacion, inmuebleId, sectorInteresadoAreaId, expedienteId: expedienteId || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "No se pudo crear la actuación.");
       setActuaciones([data as Actuacion, ...actuaciones]);
       setInmuebleId("");
       setSectorInteresadoAreaId("");
+      setExpedienteId("");
       setMostrandoForm(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al crear la actuación.");
@@ -109,6 +113,25 @@ export function AlquileresActuacionesClient({
                   className="h-9 w-[140px] rounded-[var(--radius-sm)] border border-[var(--color-border)] px-2 text-[var(--text-sm)]"
                 />
               </div>
+              <div>
+                <label className="mb-1 block text-[var(--text-xs)] font-semibold text-[var(--color-text-secondary)]">
+                  Expediente (opcional)
+                </label>
+                <select
+                  value={expedienteId}
+                  onChange={(e) => setExpedienteId(e.target.value)}
+                  className="h-9 w-[220px] rounded-[var(--radius-sm)] border border-[var(--color-border)] px-2 text-[var(--text-sm)]"
+                >
+                  <option value="">Sin expediente todavía</option>
+                  {expedientes
+                    .filter((ex) => !inmuebleId || ex.inmuebleId === inmuebleId)
+                    .map((ex) => (
+                      <option key={ex.expedienteId} value={ex.expedienteId}>
+                        {ex.nroExpediente}
+                      </option>
+                    ))}
+                </select>
+              </div>
               <Button
                 size="sm"
                 variant="primary"
@@ -136,6 +159,7 @@ export function AlquileresActuacionesClient({
               <th className="px-3.5 py-2.5">ID</th>
               <th className="px-3.5 py-2.5">Tipo</th>
               <th className="px-3.5 py-2.5">Inmueble</th>
+              <th className="px-3.5 py-2.5">Expediente</th>
               <th className="px-3.5 py-2.5">Estado</th>
               {puedeGenerarBorrador && <th className="px-3.5 py-2.5" />}
             </tr>
@@ -153,6 +177,9 @@ export function AlquileresActuacionesClient({
                 <td className="px-3.5 py-2.5 font-mono text-[var(--text-sm)]">{a.actuacionId}</td>
                 <td className="px-3.5 py-2.5">{a.tipoActuacion}</td>
                 <td className="px-3.5 py-2.5">{domicilioDe(a.inmuebleId)}</td>
+                <td className="px-3.5 py-2.5 font-mono text-[var(--text-sm)] text-[var(--color-text-secondary)]">
+                  {expedientes.find((ex) => ex.expedienteId === a.expedienteId)?.nroExpediente ?? "—"}
+                </td>
                 <td className="px-3.5 py-2.5">
                   <Badge variant={a.estadoActuacion === "FORMALIZADA" || a.estadoActuacion === "CERRADA" ? "blue" : "warning"}>
                     {a.estadoActuacion}
