@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/domain/kpi-card";
 import { Alert } from "@/components/domain/alert";
-import { SemaforoBarraAlquileres } from "@/components/domain/semaforo-barra-alquileres";
-import { VencimientosPorMesChart } from "@/components/domain/vencimientos-por-mes-chart";
+import { SemaforoBarra } from "@/components/domain/semaforo-barra";
+import { GraficoBarrasCategorias } from "@/components/domain/grafico-barras-categorias";
 import {
   ETIQUETA_ALERTA,
   SEVERIDAD_ALERTA,
@@ -64,6 +64,13 @@ const BADGE_POR_NIVEL = {
   rojo: "danger",
   gris: "info",
 } as const;
+
+const MESES_CORTOS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+function etiquetaMes(mes: string): string {
+  const [anio, mesNum] = mes.split("-").map(Number);
+  return `${MESES_CORTOS[mesNum - 1]} '${String(anio).slice(2)}`;
+}
 
 /** A1 (iniciar aviso) lleva al seguimiento del trámite de renovación; el resto, a la actuación en el listado general (resaltada). */
 function hrefParaAlerta(item: ItemColaTrabajo): string {
@@ -128,7 +135,8 @@ export function AlquileresDashboardClient({
         />
       </div>
 
-      <SemaforoBarraAlquileres
+      <SemaforoBarra
+        titulo="Semáforo de vencimientos — contratos vigentes"
         segmentos={[
           { nivel: "verde", label: "Vence > 180 días", cantidad: resumen.vencenVerde },
           { nivel: "amarillo", label: "Vence 121-180 días", cantidad: resumen.vencenAmarillo },
@@ -141,7 +149,14 @@ export function AlquileresDashboardClient({
         <div className="mb-2.5 text-[var(--text-sm)] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
           Vencimientos por mes — próximos 12 meses
         </div>
-        <VencimientosPorMesChart datos={vencimientosPorMes} />
+        <GraficoBarrasCategorias
+          datos={vencimientosPorMes.map((d) => ({
+            clave: d.mes,
+            etiqueta: etiquetaMes(d.mes),
+            cantidad: d.cantidad,
+            tooltip: `${d.cantidad} vencimiento${d.cantidad !== 1 ? "s" : ""} en ${etiquetaMes(d.mes)}`,
+          }))}
+        />
       </div>
 
       <div className="mb-5 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white shadow-[var(--shadow-sm)]">

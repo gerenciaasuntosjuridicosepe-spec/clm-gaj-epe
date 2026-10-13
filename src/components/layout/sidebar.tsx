@@ -29,6 +29,7 @@ import { NAV_GROUPS_ALQUILERES, NavItemAlquileres } from "@/lib/alquileres/naveg
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<NavItem["icon"], React.ComponentType<{ size?: number }>> = {
+  dashboard: LayoutDashboard,
   bandeja: Inbox,
   alertas: BellRing,
   calendario: CalendarDays,

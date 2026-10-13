@@ -2,7 +2,7 @@
 export interface NavItem {
   href: string;
   label: string;
-  icon: "bandeja" | "alertas" | "calendario" | "contratos" | "nueva" | "sectores" | "tipos" | "tiposAnotacion" | "tiposGarantia" | "usuarios" | "auditoria" | "rolesAccesos";
+  icon: "dashboard" | "bandeja" | "alertas" | "calendario" | "contratos" | "nueva" | "sectores" | "tipos" | "tiposAnotacion" | "tiposGarantia" | "usuarios" | "auditoria" | "rolesAccesos";
   badge?: number;
 }
 
@@ -20,8 +20,9 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "Gestión",
+    label: "Contratos",
     items: [
+      { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
       { href: "/contratos", label: "Contratos", icon: "contratos" },
       { href: "/nueva-solicitud", label: "Nueva solicitud", icon: "nueva" },
     ],

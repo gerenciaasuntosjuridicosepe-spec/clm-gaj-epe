@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface SegmentoSemaforo {
-  nivel: "verde" | "amarillo" | "naranja" | "rojo";
+  nivel: "verde" | "amarillo" | "naranja" | "rojo" | "gris";
   label: string;
   cantidad: number;
 }
@@ -12,27 +12,29 @@ const FILL: Record<SegmentoSemaforo["nivel"], string> = {
   amarillo: "bg-[var(--color-warning)]",
   naranja: "bg-brand-orange-500",
   rojo: "bg-[var(--color-danger)]",
+  gris: "bg-[var(--color-text-muted)]",
 };
 
 /**
- * Semáforo de vencimientos como barra proporcional (reemplaza 4 KpiCard
- * sueltas) — un vistazo a qué porción de los contratos vigentes está en
- * cada franja, en vez de 4 números aislados. Reutiliza los mismos colores
- * de estado que ya usa el resto del módulo (badges, puntos del calendario)
- * y el Tooltip real del design system (sección 3.13), hasta ahora sin uso.
+ * Semáforo de vencimientos como barra proporcional — un vistazo a qué
+ * porción del total está en cada franja, en vez de N números aislados.
+ * Genérico a propósito (no conoce Contrato ni Actuación): cada módulo (CLM,
+ * Alquileres) arma sus propios segmentos con sus propios umbrales de
+ * `nivelSemaforo` y le pasa a este componente solo `{nivel, label,
+ * cantidad}` — la regla de negocio de qué es "rojo" vive en cada módulo,
+ * acá solo se pinta. Reutiliza el Tooltip real del design system (sección
+ * 3.13).
  */
-export function SemaforoBarraAlquileres({ segmentos }: { segmentos: SegmentoSemaforo[] }) {
+export function SemaforoBarra({ titulo, segmentos }: { titulo: string; segmentos: SegmentoSemaforo[] }) {
   const total = segmentos.reduce((acc, s) => acc + s.cantidad, 0);
   const conDatos = segmentos.filter((s) => s.cantidad > 0);
 
   return (
     <div className="mb-5 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-white p-4.5 shadow-[var(--shadow-sm)]">
-      <div className="mb-2.5 text-[var(--text-sm)] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
-        Semáforo de vencimientos — contratos vigentes
-      </div>
+      <div className="mb-2.5 text-[var(--text-sm)] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">{titulo}</div>
 
       {total === 0 ? (
-        <p className="text-[var(--text-sm)] text-[var(--color-text-muted)]">Sin contratos vigentes todavía.</p>
+        <p className="text-[var(--text-sm)] text-[var(--color-text-muted)]">Sin datos todavía.</p>
       ) : (
         <TooltipProvider delayDuration={100}>
           <div className="flex h-5 gap-[2px]" role="img" aria-label={segmentos.map((s) => `${s.label}: ${s.cantidad}`).join(", ")}>
